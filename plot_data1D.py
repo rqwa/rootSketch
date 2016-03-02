@@ -102,7 +102,8 @@ ex = np.zeros(len(NBins))
 
 ########## Data point input
 
-FillValues = Read_Data(filelist[0])
+FillValues = ()
+FillValues += Read_Data(filelist[0])
 
 #print FillValues
 
@@ -114,22 +115,22 @@ if config.xlog:
     ROOT.gPad.SetLogx()
 if config.ylog:
     ROOT.gPad.SetLogy()
-
-if config.tgrapherrors:
-    TGE1 = ROOT.TGraphErrors(len(Bins),np.array(Bins,'d'),unumpy.nominal_values(FillValues),ex,unumpy.std_devs(FillValues))
-    TGE1.SetMarkerStyle(33)
-    TGE1.SetMarkerColor(ROOT.kAzure+2)
-    TGE1.SetMarkerSize(1.8)
-    if ( len(BinEdges)-1 != len(FillValues) ) :
-        sys.exit( "Size of binning and number of values don't agree. Stopping macro!")
-else:
-    TH1Plot.SetContent(unumpy.nominal_values(FillValues))
-    TH1Plot.SetError(unumpy.std_devs(FillValues))
-    TH1Plot.SetMarkerColor(ROOT.kAzure+2)
-    TH1Plot.SetMarkerStyle(33)
-    TH1Plot.SetMarkerSize(1.8)
-    if ( len(BinEdges) != len(FillValues) ) :
-        sys.exit( "Size of binning and number of values don't agree. Stopping macro!")
+for i in range(0,len(FillValues)):
+    if config.tgrapherrors:
+        TGE1 = ROOT.TGraphErrors(len(Bins),np.array(Bins,'d'),unumpy.nominal_values(FillValues),ex,unumpy.std_devs(FillValues))
+        TGE1.SetMarkerStyle(33)
+        TGE1.SetMarkerColor(ROOT.kAzure+2)
+        TGE1.SetMarkerSize(1.8)
+        if ( len(BinEdges)-1 != len(FillValues) ) :
+            sys.exit( "Size of binning and number of values don't agree. Stopping macro!")
+    else:
+        TH1Plot.SetContent(unumpy.nominal_values(FillValues))
+        TH1Plot.SetError(unumpy.std_devs(FillValues))
+        TH1Plot.SetMarkerColor(ROOT.kAzure+2)
+        TH1Plot.SetMarkerStyle(33)
+        TH1Plot.SetMarkerSize(1.8)
+        if ( len(BinEdges) != len(FillValues) ) :
+            sys.exit( "Size of binning and number of values don't agree. Stopping macro!")
 
 TLeg = ROOT.TLegend(0.5,0.5,0.8,0.45)
 TLeg.SetFillColor(0)

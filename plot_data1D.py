@@ -64,7 +64,7 @@ parser.add_argument("-sx", "--sizex", default=1200)
 parser.add_argument("-sy", "--sizey", default=900)
 parser.add_argument("-n", "--name", default="plot")
 parser.add_argument("-s", "--save", action="store_true")
-parser.add_argument("-ms", "--markersize", default=1.)
+parser.add_argument("-ms", "--markersize", default=1., type=float)
 parser.add_argument("-w", "--wait", action="store_true")
 parser.add_argument("-lp", "--legendposition", nargs =2, default=[0.5,0.8], type=float) #Defines top left corner of TLegend
 #parser.add_argument("-", "--")
@@ -130,12 +130,12 @@ if config.ylog:
     ROOT.gPad.SetLogy()
 
 
-TLeg = ROOT.TLegend(config.legendposition[0],config.legendposition[1],config.legendposition[0]+0.05,config.legendposition[1]-len(filelist)*0.04)
+TLeg = ROOT.TLegend(config.legendposition[0],config.legendposition[1],config.legendposition[0]+0.05,config.legendposition[1]-len(filelist)*(0.03*config.markersize))
 TLeg.SetFillColor(0)
 TLeg.SetMargin(0.00)
 TLeg.SetBorderSize(0)
 TLeg.SetTextFont(font2use)
-TLeg.SetTextSize(fontsize)
+TLeg.SetTextSize(fontsize*config.markersize)
 
 for i in range(0,len(FillValues)):
     if config.tgrapherrors:

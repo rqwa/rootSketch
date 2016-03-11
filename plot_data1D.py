@@ -24,35 +24,21 @@ def Read_Data( datafile ):
         FillValues = Values
     else:
         FillValues = np.hstack((Value0,Values))
+    #print FillValues
 
     return FillValues
-
-font2use = 43;
-fontsize = 20;
-
-ROOT.gStyle.SetTextFont(font2use)
-ROOT.gStyle.SetTitleFontSize(fontsize)
-
-ROOT.gStyle.SetOptStat(0)
-ROOT.gStyle.SetPadLeftMargin(0.08)
-ROOT.gStyle.SetPadRightMargin(0.04)
-ROOT.gStyle.SetPadTopMargin(0.06)
-ROOT.gStyle.SetPadBottomMargin(0.1)
-ROOT.gStyle.SetTitleOffset(1.1,"y")
-
-markertable = {0:[ROOT.kAzure+2,33,1.8],1:[ROOT.kSpring-8,8,1.0],2:[ROOT.kRed+1,21,1.0],3:[ROOT.kOrange+1,34,1.2],4:[ROOT.kAzure+2,22,1.2],5:[ROOT.kSpring-8,23,1.2],6:[ROOT.kRed+1,29,1.6],7:[ROOT.kOrange+1,21,1.0]}
-
-
 fileparser = argparse.ArgumentParser()
 fileparser.add_argument("-f", "--filename")
 fileparser.add_argument("-nc", "--numbercolumns")
 fileparser.add_argument("-ld", "--legend", default="", nargs='+')
+fileparser.add_argument("-nm", "--nomarker", action="store_true")
+
 
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-fb", "--filebining")
-parser.add_argument("-xt", "--xtitle", default="")
-parser.add_argument("-yt", "--ytitle", default="")
+parser.add_argument("-xt", "--xtitle", default="", nargs='+')
+parser.add_argument("-yt", "--ytitle", default="", nargs='+')
 parser.add_argument("-t", "--title", default="")
 parser.add_argument("-xr", "--xrange", nargs=2, type=float)
 parser.add_argument("-yr", "--yrange", nargs=2, type=float)
@@ -67,10 +53,22 @@ parser.add_argument("-s", "--save", action="store_true")
 parser.add_argument("-ms", "--markersize", default=1., type=float)
 parser.add_argument("-w", "--wait", action="store_true")
 parser.add_argument("-lp", "--legendposition", nargs =2, default=[0.5,0.8], type=float) #Defines top left corner of TLegend
+parser.add_argument("-lm", "--leftmargin", default=0.08, type=float)
+parser.add_argument("-rm", "--rightmargin", default=0.04, type=float)
+parser.add_argument("-tm", "--topmargin", default=0.04, type=float)
+parser.add_argument("-bm", "--bottommargin", default=0.1, type=float)
+parser.add_argument("-tox", "--titleoffsetx", default=1., type=float)
+parser.add_argument("-toy", "--titleoffsety", default=1., type=float)
+parser.add_argument("-ac", "--alternativecolors", action="store_true")
+parser.add_argument("-lt", "--legendtitle", nargs='+')
+parser.add_argument("-lb", "--label", nargs='+')
+parser.add_argument("-lbx", "--labelbox", nargs=4, default=[0.15,0.25,0.6,0.15], type=float)
+
 #parser.add_argument("-", "--")
 
 filelist = ()
 filelegend = ()
+skipmarker = ()
 
 with open(sys.argv[1],'r') as f:    #path to file with config of plot
     config_line = next(f)
@@ -78,8 +76,38 @@ with open(sys.argv[1],'r') as f:    #path to file with config of plot
         lineargs = fileparser.parse_args(li.split())
         filelist +=(lineargs.filename, lineargs.numbercolumns),
         filelegend +=(lineargs.legend),
+        skipmarker +=(lineargs.nomarker),
 
 config = parser.parse_args(config_line.split())
+
+########## ROOT config
+
+font2use = 43
+fontsize = 20*config.markersize
+
+ROOT.gStyle.SetTextFont(font2use)
+ROOT.gStyle.SetTitleFontSize(fontsize)
+
+ROOT.gStyle.SetOptStat(0)
+ROOT.gStyle.SetPadLeftMargin(config.leftmargin)
+ROOT.gStyle.SetPadRightMargin(config.rightmargin)
+ROOT.gStyle.SetPadTopMargin(config.topmargin)
+ROOT.gStyle.SetPadBottomMargin(config.bottommargin)
+ROOT.gStyle.SetTitleOffset(config.titleoffsety,"y")
+ROOT.gStyle.SetTitleOffset(config.titleoffsetx,"x")
+ROOT.gStyle.SetLabelFont(font2use,"x")
+ROOT.gStyle.SetLabelFont(font2use,"y")
+ROOT.gStyle.SetLabelSize(fontsize,"x")
+ROOT.gStyle.SetLabelSize(fontsize,"y")
+ROOT.gStyle.SetTitleFont(font2use,"x")
+ROOT.gStyle.SetTitleFont(font2use,"y")
+ROOT.gStyle.SetTitleYSize(fontsize)
+ROOT.gStyle.SetTitleXSize(fontsize)
+
+if config.alternativecolors:
+    markertable = {0:[ROOT.kBlue+2,33,1.7],1:[ROOT.kOrange+10,8,1.0],2:[ROOT.kTeal-6,21,1.0],3:[ROOT.kMagenta+3,34,1.4],4:[ROOT.kBlue+2,22,1.2],5:[ROOT.kPink,23,1.2],6:[ROOT.kOrange+10,29,1.6],7:[ROOT.kTeal+3,21,1.0]}
+else:
+    markertable = {0:[ROOT.kAzure+2,33,1.7],1:[ROOT.kSpring-8,8,1.0],2:[ROOT.kRed+1,21,1.0],3:[ROOT.kOrange+1,34,1.4],4:[ROOT.kAzure+2,22,1.2],5:[ROOT.kSpring-8,23,1.2],6:[ROOT.kRed+1,29,1.6],7:[ROOT.kOrange+1,21,1.0]}
 
 #print config
 #print filelist
@@ -129,13 +157,28 @@ if config.xlog:
 if config.ylog:
     ROOT.gPad.SetLogy()
 
-
-TLeg = ROOT.TLegend(config.legendposition[0],config.legendposition[1],config.legendposition[0]+0.05,config.legendposition[1]-len(filelist)*(0.03*config.markersize))
+if config.legendtitle:
+    TLeg = ROOT.TLegend(config.legendposition[0],config.legendposition[1],config.legendposition[0]+0.05,config.legendposition[1]-(len(filelist)+1)*(0.03*config.markersize))
+else:
+    TLeg = ROOT.TLegend(config.legendposition[0],config.legendposition[1],config.legendposition[0]+0.05,config.legendposition[1]-len(filelist)*(0.03*config.markersize))
 TLeg.SetFillColor(0)
 TLeg.SetMargin(0.00)
 TLeg.SetBorderSize(0)
 TLeg.SetTextFont(font2use)
-TLeg.SetTextSize(fontsize*config.markersize)
+TLeg.SetTextSize(fontsize)
+if config.legendtitle:
+    TLeg.AddEntry("", "  %s"%(' '.join(config.legendtitle)),"")
+
+if config.label:
+    print config.labelbox
+    Label = ROOT.TLegend(config.labelbox[0],config.labelbox[1],config.labelbox[2],config.labelbox[3])
+    Label.SetFillColor(0)
+    Label.SetMargin(0.00)
+    Label.SetBorderSize(0)
+    Label.SetTextFont(font2use)
+    Label.SetTextSize(fontsize)
+    Label.AddEntry("","%s"%(' '.join(config.label)),"")
+    
 
 for i in range(0,len(FillValues)):
     if config.tgrapherrors:
@@ -156,7 +199,10 @@ for i in range(0,len(FillValues)):
         if ( len(BinEdges) != len(FillValues[i]) ) :
             sys.exit( "Size of binning and number of values don't agree. Stopping macro!")
         THSt1.Add(TH1Plot[i])
-        TLeg.AddEntry(TH1Plot[i], ("  %s"%(' '.join(filelegend[i]))))
+        if skipmarker[i]:
+            TLeg.AddEntry("", ("  %s"%(' '.join(filelegend[i]))),"")
+        else:
+            TLeg.AddEntry(TH1Plot[i], ("  %s"%(' '.join(filelegend[i]))))
 
 
 if config.tgrapherrors:
@@ -168,8 +214,8 @@ if config.tgrapherrors:
         TH1Plot.GetYaxis().SetRangeUser(config.yrange[0],config.yrange[1])
 else:
     THSt1.Draw("nostack")
-    THSt1.GetXaxis().SetTitle(config.xtitle)
-    THSt1.GetYaxis().SetTitle(config.ytitle)
+    THSt1.GetXaxis().SetTitle("%s"%(' '.join(config.xtitle)))
+    THSt1.GetYaxis().SetTitle("%s"%(' '.join(config.ytitle)))
     if config.xrange:
         THSt1.GetXaxis().SetRangeUser(config.xrange[0],config.xrange[1])
         print "set x-range"
@@ -194,10 +240,13 @@ else:
 #TLeg.AddEntry("","test", "")
 TLeg.Draw("")
 
-if config.wait:
-    wait()
+if config.label:
+    Label.Draw("")
+
 
 if config.save:
     TC1.SaveAs("plots/%s.pdf"%(config.name))
     TC1.SaveAs("plots/%s.png"%(config.name))
 
+if config.wait:
+    wait()

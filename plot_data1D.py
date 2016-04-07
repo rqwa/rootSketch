@@ -70,13 +70,17 @@ filelist = ()
 filelegend = ()
 skipmarker = ()
 
+filecheck = ['-f ','--filename ']
+
 with open(sys.argv[1],'r') as f:    #path to file with config of plot
-    config_line = next(f)
     for li in f:
-        lineargs = fileparser.parse_args(li.split())
-        filelist +=(lineargs.filename, lineargs.numbercolumns),
-        filelegend +=(lineargs.legend),
-        skipmarker +=(lineargs.nomarker),
+        if any ([x in li for x in filecheck]):
+            lineargs = fileparser.parse_args(li.split())
+            filelist +=(lineargs.filename, lineargs.numbercolumns),
+            filelegend +=(lineargs.legend),
+            skipmarker +=(lineargs.nomarker),
+        else:
+            config_line = li
 
 config = parser.parse_args(config_line.split())
 

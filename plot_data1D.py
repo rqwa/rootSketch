@@ -32,6 +32,8 @@ fileparser.add_argument("-f", "--filename")
 fileparser.add_argument("-nc", "--numbercolumns")
 fileparser.add_argument("-ld", "--legend", default="", nargs='+')
 fileparser.add_argument("-nm", "--nomarker", action="store_true")
+fileparser.add_argument("-rd", "--ratiodivisor", action="store_true") #Ratio can only be calculated with exactly one input variable chosen
+
 
 
 
@@ -63,12 +65,18 @@ parser.add_argument("-ac", "--alternativecolors", action="store_true")
 parser.add_argument("-lt", "--legendtitle", nargs='+')
 parser.add_argument("-lb", "--label", nargs='+')
 parser.add_argument("-lbx", "--labelbox", nargs=4, default=[0.15,0.25,0.6,0.15], type=float)
+parser.add_argument("-r", "--ratio", action="store_true")
+parser.add_argument("-pr", "--plusratio", action="store_true")
+
 
 #parser.add_argument("-", "--")
 
 filelist = ()
 filelegend = ()
 skipmarker = ()
+
+ratiobase = -1
+counter = 0
 
 filecheck = ['-f ','--filename ']
 
@@ -79,6 +87,9 @@ with open(sys.argv[1],'r') as f:    #path to file with config of plot
             filelist +=(lineargs.filename, lineargs.numbercolumns),
             filelegend +=(lineargs.legend),
             skipmarker +=(lineargs.nomarker),
+            if lineargs.ratiodivisor:
+                ratiobase = counter
+            counter += 1
         else:
             config_line = li
 
@@ -155,6 +166,8 @@ else:
     THSt1 = ROOT.THStack("THStack1",config.title)
     TH1Plot = []
 
+if config.ratio or config.plusratio:
+    THSRatio = ROOT.THStack("THSRatio","%s_ratio"%(config.title))
 
 if config.xlog:
     ROOT.gPad.SetLogx()
@@ -208,7 +221,16 @@ for i in range(0,len(FillValues)):
         else:
             TLeg.AddEntry(TH1Plot[i], ("  %s"%(' '.join(filelegend[i]))))
 
-
+if  config.ratio or config.plusratio:
+    for i in range(0,len(FillValues)):
+        if i == ratiobase:
+            continue
+        THDiv = TH1Plot[i].Clone("THDiv")
+        THDiv.Sumw2()
+        THDiv.Divide(TH1Plot[ratiobase])
+        THSRatio.Add(THDiv)
+    
+    
 if config.tgrapherrors:
     TH1Plot.GetXaxis().SetTitle(config.xtitle)
     TH1Plot.GetYaxis().SetTitle(config.ytitle)
@@ -229,7 +251,7 @@ else:
         print "set y-range"
 
 
-########## Plotting
+########## Plot spectrum
 
 if config.tgrapherrors:
     try:
@@ -251,6 +273,11 @@ if config.label:
 if config.save:
     TC1.SaveAs("plots/%s.pdf"%(config.name))
     TC1.SaveAs("plots/%s.png"%(config.name))
+
+########## Plot ratio
+
+if config.ratio:
+    THSRatio.Draw("nostack")
 
 if config.wait:
     wait()

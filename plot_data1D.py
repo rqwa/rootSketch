@@ -31,6 +31,7 @@ fileparser = argparse.ArgumentParser()
 fileparser.add_argument("-f", "--filename")
 fileparser.add_argument("-nc", "--numbercolumns")
 fileparser.add_argument("-ld", "--legend", default="", nargs='+')
+fileparser.add_argument("-rld", "--ratiolegend", default="", nargs='+')
 fileparser.add_argument("-nm", "--nomarker", action="store_true")
 fileparser.add_argument("-rd", "--ratiodivisor", action="store_true") #Ratio can only be calculated with exactly one input variable chosen
 
@@ -47,7 +48,9 @@ parser.add_argument("-yr", "--yrange", nargs=2, type=float)
 parser.add_argument("-tge", "--tgrapherrors", action="store_true")
 parser.add_argument("-bc", "--bincenter") #This option will only work with tgrapherrors
 parser.add_argument("--xlog", action="store_true")
+parser.add_argument("--xrlog", action="store_true")
 parser.add_argument("--ylog", action="store_true")
+parser.add_argument("--yrlog", action="store_true")
 parser.add_argument("-sx", "--sizex", default=1200)
 parser.add_argument("-sy", "--sizey", default=900)
 parser.add_argument("-n", "--name", default="plot")
@@ -67,12 +70,19 @@ parser.add_argument("-lb", "--label", nargs='+')
 parser.add_argument("-lbx", "--labelbox", nargs=4, default=[0.15,0.25,0.6,0.15], type=float)
 parser.add_argument("-r", "--ratio", action="store_true")
 parser.add_argument("-pr", "--plusratio", action="store_true")
+parser.add_argument("-mxl", "--morexlables", action="store_true")
+parser.add_argument("-myl", "--moreylables", action="store_true")
+parser.add_argument("-rl", "--ratiolegend", action="store_true")
+parser.add_argument("-xrr", "--xratiorange", nargs=2, type=float)
+parser.add_argument("-yrr", "--yratiorange", nargs=2, type=float)
+parser.add_argument("-rbe", "--ratiobinomialerr", action="store_true")
 
 
 #parser.add_argument("-", "--")
 
 filelist = ()
 filelegend = ()
+ratiolegend = ()
 skipmarker = ()
 
 ratiobase = -1
@@ -86,12 +96,14 @@ with open(sys.argv[1],'r') as f:    #path to file with config of plot
             lineargs = fileparser.parse_args(li.split())
             filelist +=(lineargs.filename, lineargs.numbercolumns),
             filelegend +=(lineargs.legend),
+            ratiolegend +=(lineargs.ratiolegend),
             skipmarker +=(lineargs.nomarker),
             if lineargs.ratiodivisor:
                 ratiobase = counter
             counter += 1
         else:
             config_line = li
+
 
 config = parser.parse_args(config_line.split())
 
@@ -220,15 +232,6 @@ for i in range(0,len(FillValues)):
             TLeg.AddEntry("", ("  %s"%(' '.join(filelegend[i]))),"")
         else:
             TLeg.AddEntry(TH1Plot[i], ("  %s"%(' '.join(filelegend[i]))))
-
-if  config.ratio or config.plusratio:
-    for i in range(0,len(FillValues)):
-        if i == ratiobase:
-            continue
-        THDiv = TH1Plot[i].Clone("THDiv")
-        THDiv.Sumw2()
-        THDiv.Divide(TH1Plot[ratiobase])
-        THSRatio.Add(THDiv)
     
     
 if config.tgrapherrors:
@@ -249,6 +252,8 @@ else:
         THSt1.SetMinimum(config.yrange[0])
         THSt1.SetMaximum(config.yrange[1])
         print "set y-range"
+    if config.morexlables:
+        THSt1.GetXaxis().SetMoreLogLabels(True)
 
 
 ########## Plot spectrum
@@ -274,10 +279,59 @@ if config.save:
     TC1.SaveAs("plots/%s.pdf"%(config.name))
     TC1.SaveAs("plots/%s.png"%(config.name))
 
+
+########## Ratio histogram
+
+THSRatio = ROOT.THStack("THStackRatio",config.title)
+
+TRatioLeg = ROOT.TLegend(config.legendposition[0],config.legendposition[1],config.legendposition[0]+0.05,config.legendposition[1]-len(filelist)*(0.03*config.markersize))
+TRatioLeg.SetFillColor(0)
+TRatioLeg.SetMargin(0.00)
+TRatioLeg.SetBorderSize(0)
+TRatioLeg.SetTextFont(font2use)
+TRatioLeg.SetTextSize(fontsize)
+
+
+
+if  config.ratio or config.plusratio:
+    TC2 = ROOT.TCanvas("TC2","",20,20,config.sizex,config.sizey)
+    for i in range(0,len(FillValues)):
+        print i
+        THDiv=TH1Plot[i].Clone()
+        THDiv.Sumw2
+        if i == ratiobase:
+            print "skip event "
+            continue
+        if config.ratiobinomialerr:
+            THDiv.Divide(TH1Plot[i],TH1Plot[ratiobase],1.,1.,"B")
+            print "Bionmial errors used"
+        else:
+            THDiv.Divide(TH1Plot[i],TH1Plot[ratiobase])
+        THSRatio.Add(THDiv)
+
+THSRatio.Draw("nostack")
+THSRatio.GetXaxis().SetTitle("%s"%(' '.join(config.xtitle)))
+if config.xratiorange:
+    THSRatio.GetXaxis().SetRangeUser(config.xratiorange[0],config.xratiorange[1])
+    print "set x-range"
+
+if config.yratiorange:
+    THSRatio.SetMinimum(config.yratiorange[0])
+    THSRatio.SetMaximum(config.yratiorange[1])
+    print "set y-range"
+
+TRatioLeg.AddEntry(TH1Plot[i], ("  %s"%(' '.join(ratiolegend[i]))))
+
 ########## Plot ratio
 
 if config.ratio:
     THSRatio.Draw("nostack")
+if config.ratiolegend:
+    TRatioLeg.Draw("")
+
+if config.save:
+    TC2.SaveAs("plots/%s_ratio.pdf"%(config.name))
+    TC2.SaveAs("plots/%s_ratio.png"%(config.name))
 
 if config.wait:
     wait()

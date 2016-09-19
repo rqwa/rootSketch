@@ -282,18 +282,18 @@ if config.save:
 
 ########## Ratio histogram
 
-THSRatio = ROOT.THStack("THStackRatio",config.title)
-
-TRatioLeg = ROOT.TLegend(config.legendposition[0],config.legendposition[1],config.legendposition[0]+0.05,config.legendposition[1]-len(filelist)*(0.03*config.markersize))
-TRatioLeg.SetFillColor(0)
-TRatioLeg.SetMargin(0.00)
-TRatioLeg.SetBorderSize(0)
-TRatioLeg.SetTextFont(font2use)
-TRatioLeg.SetTextSize(fontsize)
-
-
-
 if  config.ratio or config.plusratio:
+    THSRatio = ROOT.THStack("THStackRatio",config.title)
+    
+    TRatioLeg = ROOT.TLegend(config.legendposition[0],config.legendposition[1],config.legendposition[0]+0.05,config.legendposition[1]-len(filelist)*(0.03*config.markersize))
+    TRatioLeg.SetFillColor(0)
+    TRatioLeg.SetMargin(0.00)
+    TRatioLeg.SetBorderSize(0)
+    TRatioLeg.SetTextFont(font2use)
+    TRatioLeg.SetTextSize(fontsize)
+    
+    
+    
     TC2 = ROOT.TCanvas("TC2","",20,20,config.sizex,config.sizey)
     for i in range(0,len(FillValues)):
         print i
@@ -308,30 +308,31 @@ if  config.ratio or config.plusratio:
         else:
             THDiv.Divide(TH1Plot[i],TH1Plot[ratiobase])
         THSRatio.Add(THDiv)
-
-THSRatio.Draw("nostack")
-THSRatio.GetXaxis().SetTitle("%s"%(' '.join(config.xtitle)))
-if config.xratiorange:
-    THSRatio.GetXaxis().SetRangeUser(config.xratiorange[0],config.xratiorange[1])
-    print "set x-range"
-
-if config.yratiorange:
-    THSRatio.SetMinimum(config.yratiorange[0])
-    THSRatio.SetMaximum(config.yratiorange[1])
-    print "set y-range"
-
-TRatioLeg.AddEntry(TH1Plot[i], ("  %s"%(' '.join(ratiolegend[i]))))
-
-########## Plot ratio
-
-if config.ratio:
+    
+    
     THSRatio.Draw("nostack")
-if config.ratiolegend:
-    TRatioLeg.Draw("")
-
-if config.save:
-    TC2.SaveAs("plots/%s_ratio.pdf"%(config.name))
-    TC2.SaveAs("plots/%s_ratio.png"%(config.name))
+    THSRatio.GetXaxis().SetTitle("%s"%(' '.join(config.xtitle)))
+    if config.xratiorange:
+        THSRatio.GetXaxis().SetRangeUser(config.xratiorange[0],config.xratiorange[1])
+        print "set x-range"
+    
+    if config.yratiorange:
+        THSRatio.SetMinimum(config.yratiorange[0])
+        THSRatio.SetMaximum(config.yratiorange[1])
+        print "set y-range"
+    
+    TRatioLeg.AddEntry(TH1Plot[i], ("  %s"%(' '.join(ratiolegend[i]))))
+    
+    ########## Plot ratio
+    
+    if config.ratio:
+        THSRatio.Draw("nostack")
+    if config.ratiolegend:
+        TRatioLeg.Draw("")
+    
+    if config.save:
+        TC2.SaveAs("plots/%s_ratio.pdf"%(config.name))
+        TC2.SaveAs("plots/%s_ratio.png"%(config.name))
 
 if config.wait:
     wait()

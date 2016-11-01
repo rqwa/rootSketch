@@ -33,6 +33,7 @@ fileparser.add_argument("-nc", "--numbercolumns")
 fileparser.add_argument("-ld", "--legend", default="", nargs='+')
 fileparser.add_argument("-rld", "--ratiolegend", default="", nargs='+')
 fileparser.add_argument("-nm", "--nomarker", action="store_true")
+fileparser.add_argument("-rnm", "--rationomarker", action="store_true")
 fileparser.add_argument("-rd", "--ratiodivisor", action="store_true") #Ratio can only be calculated with exactly one input variable chosen
 
 
@@ -51,8 +52,8 @@ parser.add_argument("--xlog", action="store_true")
 parser.add_argument("--xrlog", action="store_true")
 parser.add_argument("--ylog", action="store_true")
 parser.add_argument("--yrlog", action="store_true")
-parser.add_argument("-sx", "--sizex", default=1200)
-parser.add_argument("-sy", "--sizey", default=900)
+parser.add_argument("-sx", "--sizex", default=1200, type=int)
+parser.add_argument("-sy", "--sizey", default=900, type =int)
 parser.add_argument("-n", "--name", default="plot")
 parser.add_argument("-s", "--save", action="store_true")
 parser.add_argument("-ms", "--markersize", default=1., type=float)
@@ -68,11 +69,13 @@ parser.add_argument("-ac", "--alternativecolors", action="store_true")
 parser.add_argument("-lt", "--legendtitle", nargs='+')
 parser.add_argument("-lb", "--label", nargs='+')
 parser.add_argument("-lbx", "--labelbox", nargs=4, default=[0.15,0.25,0.6,0.15], type=float)
+#ratio config
 parser.add_argument("-r", "--ratio", action="store_true")
 parser.add_argument("-pr", "--plusratio", action="store_true")
 parser.add_argument("-mxl", "--morexlables", action="store_true")
 parser.add_argument("-myl", "--moreylables", action="store_true")
 parser.add_argument("-rl", "--ratiolegend", action="store_true")
+parser.add_argument("-rlp", "--ratiolegendposition", nargs =2, default=[0.5,0.8], type=float) #Defines top left corner of TLegend
 parser.add_argument("-xrr", "--xratiorange", nargs=2, type=float)
 parser.add_argument("-yrr", "--yratiorange", nargs=2, type=float)
 parser.add_argument("-rbe", "--ratiobinomialerr", action="store_true")
@@ -84,6 +87,7 @@ filelist = ()
 filelegend = ()
 ratiolegend = ()
 skipmarker = ()
+ratioskipmarker = ()
 
 ratiobase = -1
 counter = 0
@@ -98,6 +102,7 @@ with open(sys.argv[1],'r') as f:    #path to file with config of plot
             filelegend +=(lineargs.legend),
             ratiolegend +=(lineargs.ratiolegend),
             skipmarker +=(lineargs.nomarker),
+            ratioskipmarker +=(lineargs.rationomarker),
             if lineargs.ratiodivisor:
                 ratiobase = counter
             counter += 1
@@ -149,7 +154,14 @@ for li in FileBinning:
     BinEdges.append(float(splitline[0]))
     #print splitline[0]
 
+BinRange = [min(BinEdges),max(BinEdges)]
+
+print BinRange
+
+
 NBins = BinEdges[0:len(BinEdges)-1]
+
+
 
 Bins = []
 Ex = []
@@ -157,6 +169,9 @@ Ex = []
 for i in range(len(BinEdges)-1):
     Bins.append((BinEdges[i]+BinEdges[i+1])/2)
 
+print NBins
+print BinEdges
+print Bins
 ex = np.zeros(len(NBins))
 
 #print len(BinEdges)
@@ -285,12 +300,14 @@ if config.save:
 if  config.ratio or config.plusratio:
     THSRatio = ROOT.THStack("THStackRatio",config.title)
     
-    TRatioLeg = ROOT.TLegend(config.legendposition[0],config.legendposition[1],config.legendposition[0]+0.05,config.legendposition[1]-len(filelist)*(0.03*config.markersize))
+    TRatioLeg = ROOT.TLegend(config.ratiolegendposition[0],config.ratiolegendposition[1],config.ratiolegendposition[0]+0.05,config.ratiolegendposition[1]-(len(filelist)-1)*(0.03*config.markersize))
     TRatioLeg.SetFillColor(0)
     TRatioLeg.SetMargin(0.00)
     TRatioLeg.SetBorderSize(0)
     TRatioLeg.SetTextFont(font2use)
     TRatioLeg.SetTextSize(fontsize)
+
+    TFconst1 = ROOT.TF1("fconst1","1.",BinRange[0],BinRange[1])
     
     
     
@@ -300,6 +317,8 @@ if  config.ratio or config.plusratio:
         THDiv=TH1Plot[i].Clone()
         THDiv.Sumw2
         if i == ratiobase:
+            TFconst1.SetLineColor(markertable.get(i)[0])
+            TRatioLeg.AddEntry(TFconst1, ("  %s"%(' '.join(ratiolegend[i]))))
             print "skip event "
             continue
         if config.ratiobinomialerr:
@@ -307,6 +326,10 @@ if  config.ratio or config.plusratio:
             print "Bionmial errors used"
         else:
             THDiv.Divide(TH1Plot[i],TH1Plot[ratiobase])
+        if ratioskipmarker[i]:
+            TRatioLeg.AddEntry("", ("  %s"%(' '.join(ratiolegend[i]))),"")
+        else:
+            TRatioLeg.AddEntry(TH1Plot[i], ("  %s"%(' '.join(ratiolegend[i]))))
         THSRatio.Add(THDiv)
     
     
@@ -321,12 +344,12 @@ if  config.ratio or config.plusratio:
         THSRatio.SetMaximum(config.yratiorange[1])
         print "set y-range"
     
-    TRatioLeg.AddEntry(TH1Plot[i], ("  %s"%(' '.join(ratiolegend[i]))))
     
     ########## Plot ratio
     
     if config.ratio:
-        THSRatio.Draw("nostack")
+        TFconst1.Draw("same")
+        THSRatio.Draw("nostacksame")
     if config.ratiolegend:
         TRatioLeg.Draw("")
     

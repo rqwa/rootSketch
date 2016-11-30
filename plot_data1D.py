@@ -10,8 +10,6 @@ import ROOT
 import uncertainties as unc
 from uncertainties import unumpy
 import numpy as np
-from rootpy.interactive import wait
-from rootpy.plotting import Hist
 import argparse 
 
 def Read_Data( datafile ):
@@ -27,58 +25,65 @@ def Read_Data( datafile ):
     #print FillValues
 
     return FillValues
+
+def Save_Plots():
+    TCspectrum.SaveAs("plots/%s.pdf"%(config.name))
+    TCspectrum.SaveAs("plots/%s.png"%(config.name))
+    if config.ratio:
+        TCratio.SaveAs("plots/%s_ratio.pdf"%(config.name))
+        TCratio.SaveAs("plots/%s_ratio.png"%(config.name))
+
+    
+
 fileparser = argparse.ArgumentParser()
 fileparser.add_argument("-f", "--filename")
-fileparser.add_argument("-nc", "--numbercolumns")
 fileparser.add_argument("-ld", "--legend", default="", nargs='+')
-fileparser.add_argument("-rld", "--ratiolegend", default="", nargs='+')
+fileparser.add_argument("-nc", "--numbercolumns")
 fileparser.add_argument("-nm", "--nomarker", action="store_true")
-fileparser.add_argument("-rnm", "--rationomarker", action="store_true")
 fileparser.add_argument("-rd", "--ratiodivisor", action="store_true") #Ratio can only be calculated with exactly one input variable chosen
-
-
-
+fileparser.add_argument("-rld", "--ratiolegend", default="", nargs='+')
+fileparser.add_argument("-rnm", "--rationomarker", action="store_true")
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-fb", "--filebining")
-parser.add_argument("-xt", "--xtitle", default="", nargs='+')
-parser.add_argument("-yt", "--ytitle", default="", nargs='+')
-parser.add_argument("-t", "--title", default="")
-parser.add_argument("-xr", "--xrange", nargs=2, type=float)
-parser.add_argument("-yr", "--yrange", nargs=2, type=float)
-parser.add_argument("-tge", "--tgrapherrors", action="store_true")
+parser.add_argument("-ac", "--alternativecolors", action="store_true")
 parser.add_argument("-bc", "--bincenter") #This option will only work with tgrapherrors
+parser.add_argument("-bm", "--bottommargin", default=0.1, type=float)
+parser.add_argument("-fb", "--filebining")
+parser.add_argument("-lb", "--label", nargs='+')
+parser.add_argument("-lbx", "--labelbox", nargs=4, default=[0.15,0.25,0.6,0.15], type=float)
+parser.add_argument("-lm", "--leftmargin", default=0.08, type=float)
+parser.add_argument("-lp", "--legendposition", nargs =2, default=[0.5,0.8], type=float) #Defines top left corner of TLegend
+parser.add_argument("-lt", "--legendtitle", nargs='+')
+parser.add_argument("-ms", "--markersize", default=1., type=float)
+parser.add_argument("-n", "--name", default="plot")
+parser.add_argument("-rm", "--rightmargin", default=0.04, type=float)
+parser.add_argument("-s", "--save", action="store_true")
+parser.add_argument("-sx", "--sizex", default=1200, type=int)
+parser.add_argument("-sy", "--sizey", default=900, type =int)
+parser.add_argument("-t", "--title", default="")
+parser.add_argument("-tge", "--tgrapherrors", action="store_true")
+parser.add_argument("-tm", "--topmargin", default=0.04, type=float)
+parser.add_argument("-tox", "--titleoffsetx", default=1., type=float)
+parser.add_argument("-toy", "--titleoffsety", default=1., type=float)
+parser.add_argument("-xr", "--xrange", nargs=2, type=float)
+parser.add_argument("-xt", "--xtitle", default="", nargs='+')
+parser.add_argument("-yr", "--yrange", nargs=2, type=float)
+parser.add_argument("-yt", "--ytitle", default="", nargs='+')
 parser.add_argument("--xlog", action="store_true")
 parser.add_argument("--xrlog", action="store_true")
 parser.add_argument("--ylog", action="store_true")
 parser.add_argument("--yrlog", action="store_true")
-parser.add_argument("-sx", "--sizex", default=1200, type=int)
-parser.add_argument("-sy", "--sizey", default=900, type =int)
-parser.add_argument("-n", "--name", default="plot")
-parser.add_argument("-s", "--save", action="store_true")
-parser.add_argument("-ms", "--markersize", default=1., type=float)
-parser.add_argument("-w", "--wait", action="store_true")
-parser.add_argument("-lp", "--legendposition", nargs =2, default=[0.5,0.8], type=float) #Defines top left corner of TLegend
-parser.add_argument("-lm", "--leftmargin", default=0.08, type=float)
-parser.add_argument("-rm", "--rightmargin", default=0.04, type=float)
-parser.add_argument("-tm", "--topmargin", default=0.04, type=float)
-parser.add_argument("-bm", "--bottommargin", default=0.1, type=float)
-parser.add_argument("-tox", "--titleoffsetx", default=1., type=float)
-parser.add_argument("-toy", "--titleoffsety", default=1., type=float)
-parser.add_argument("-ac", "--alternativecolors", action="store_true")
-parser.add_argument("-lt", "--legendtitle", nargs='+')
-parser.add_argument("-lb", "--label", nargs='+')
-parser.add_argument("-lbx", "--labelbox", nargs=4, default=[0.15,0.25,0.6,0.15], type=float)
 #ratio config
-parser.add_argument("-r", "--ratio", action="store_true")
-parser.add_argument("-pr", "--plusratio", action="store_true")
 parser.add_argument("-mxl", "--morexlables", action="store_true")
 parser.add_argument("-myl", "--moreylables", action="store_true")
+parser.add_argument("-pr", "--plusratio", action="store_true")
+parser.add_argument("-ppr", "--pluspadratio", default=0.3, type=float)
+parser.add_argument("-r", "--ratio", action="store_true")
+parser.add_argument("-rbe", "--ratiobinomialerr", action="store_true")
 parser.add_argument("-rl", "--ratiolegend", action="store_true")
 parser.add_argument("-rlp", "--ratiolegendposition", nargs =2, default=[0.5,0.8], type=float) #Defines top left corner of TLegend
 parser.add_argument("-xrr", "--xratiorange", nargs=2, type=float)
 parser.add_argument("-yrr", "--yratiorange", nargs=2, type=float)
-parser.add_argument("-rbe", "--ratiobinomialerr", action="store_true")
 
 
 #parser.add_argument("-", "--")
@@ -141,6 +146,7 @@ if config.alternativecolors:
 else:
     markertable = {0:[ROOT.kAzure+2,33,1.7],1:[ROOT.kSpring-8,8,1.0],2:[ROOT.kRed+1,21,1.0],3:[ROOT.kOrange+1,34,1.4],4:[ROOT.kAzure+2,22,1.2],5:[ROOT.kSpring-8,23,1.2],6:[ROOT.kRed+1,29,1.6],7:[ROOT.kOrange+1,21,1.0]}
 
+
 #print config
 #print filelist
 
@@ -158,10 +164,7 @@ BinRange = [min(BinEdges),max(BinEdges)]
 
 print BinRange
 
-
 NBins = BinEdges[0:len(BinEdges)-1]
-
-
 
 Bins = []
 Ex = []
@@ -186,7 +189,7 @@ for i in range (len(filelist)):
 
 
 ########## General histogram
-TC1 = ROOT.TCanvas("TC1","",20,20,config.sizex,config.sizey)
+TCspectrum = ROOT.TCanvas("TCspectrum","",20,20,config.sizex,config.sizey)
 if config.tgrapherrors:
     TH1Plot = ROOT.TH1D("TH1Plot",config.title,len(NBins),np.array(BinEdges,'d'))
 else:
@@ -202,11 +205,11 @@ if config.ylog:
     ROOT.gPad.SetLogy()
 
 if config.legendtitle:
-    TLeg = ROOT.TLegend(config.legendposition[0],config.legendposition[1],config.legendposition[0]+0.05,config.legendposition[1]-(len(filelist)+1)*(0.03*config.markersize))
+    TLeg = ROOT.TLegend(config.legendposition[0],config.legendposition[1],config.legendposition[0]+0.05,config.legendposition[1]-(len(filelist)+1)*(0.02*config.markersize))
 else:
-    TLeg = ROOT.TLegend(config.legendposition[0],config.legendposition[1],config.legendposition[0]+0.05,config.legendposition[1]-len(filelist)*(0.03*config.markersize))
+    TLeg = ROOT.TLegend(config.legendposition[0],config.legendposition[1],config.legendposition[0]+0.05,config.legendposition[1]-len(filelist)*(0.02*config.markersize))
 TLeg.SetFillColor(0)
-TLeg.SetMargin(0.00)
+TLeg.SetMargin(0.075*config.markersize)
 TLeg.SetBorderSize(0)
 TLeg.SetTextFont(font2use)
 TLeg.SetTextSize(fontsize)
@@ -217,7 +220,6 @@ if config.label:
     print config.labelbox
     Label = ROOT.TLegend(config.labelbox[0],config.labelbox[1],config.labelbox[2],config.labelbox[3])
     Label.SetFillColor(0)
-    Label.SetMargin(0.00)
     Label.SetBorderSize(0)
     Label.SetTextFont(font2use)
     Label.SetTextSize(fontsize)
@@ -290,35 +292,31 @@ if config.label:
     Label.Draw("")
 
 
-if config.save:
-    TC1.SaveAs("plots/%s.pdf"%(config.name))
-    TC1.SaveAs("plots/%s.png"%(config.name))
-
 
 ########## Ratio histogram
 
 if  config.ratio or config.plusratio:
     THSRatio = ROOT.THStack("THStackRatio",config.title)
     
-    TRatioLeg = ROOT.TLegend(config.ratiolegendposition[0],config.ratiolegendposition[1],config.ratiolegendposition[0]+0.05,config.ratiolegendposition[1]-(len(filelist)-1)*(0.03*config.markersize))
+    TRatioLeg = ROOT.TLegend(config.ratiolegendposition[0],config.ratiolegendposition[1],config.ratiolegendposition[0]+0.25,config.ratiolegendposition[1]-(len(filelist)-1)*(0.02*config.markersize))
     TRatioLeg.SetFillColor(0)
-    TRatioLeg.SetMargin(0.00)
+    TRatioLeg.SetMargin(0.075*config.markersize)
     TRatioLeg.SetBorderSize(0)
     TRatioLeg.SetTextFont(font2use)
     TRatioLeg.SetTextSize(fontsize)
 
-    TFconst1 = ROOT.TF1("fconst1","1.",BinRange[0],BinRange[1])
+    TFconst1 = ROOT.TF1("TFconst1","1.",BinRange[0],BinRange[1])
     
     
     
-    TC2 = ROOT.TCanvas("TC2","",20,20,config.sizex,config.sizey)
     for i in range(0,len(FillValues)):
         print i
         THDiv=TH1Plot[i].Clone()
         THDiv.Sumw2
         if i == ratiobase:
             TFconst1.SetLineColor(markertable.get(i)[0])
-            TRatioLeg.AddEntry(TFconst1, ("  %s"%(' '.join(ratiolegend[i]))))
+            TFconst1.SetLineWidth(4)
+            TRatioLeg.AddEntry(TFconst1, ("  %s"%(' '.join(ratiolegend[i]))),"l")
             print "skip event "
             continue
         if config.ratiobinomialerr:
@@ -329,10 +327,11 @@ if  config.ratio or config.plusratio:
         if ratioskipmarker[i]:
             TRatioLeg.AddEntry("", ("  %s"%(' '.join(ratiolegend[i]))),"")
         else:
-            TRatioLeg.AddEntry(TH1Plot[i], ("  %s"%(' '.join(ratiolegend[i]))))
+            TRatioLeg.AddEntry(TH1Plot[i], ("  %s"%(' '.join(ratiolegend[i]))),"p")
         THSRatio.Add(THDiv)
     
     
+    TCratio = ROOT.TCanvas("TCratio","",20,20,config.sizex,config.sizey)
     THSRatio.Draw("nostack")
     THSRatio.GetXaxis().SetTitle("%s"%(' '.join(config.xtitle)))
     if config.xratiorange:
@@ -352,10 +351,37 @@ if  config.ratio or config.plusratio:
         THSRatio.Draw("nostacksame")
     if config.ratiolegend:
         TRatioLeg.Draw("")
-    
-    if config.save:
-        TC2.SaveAs("plots/%s_ratio.pdf"%(config.name))
-        TC2.SaveAs("plots/%s_ratio.png"%(config.name))
 
-if config.wait:
-    wait()
+    if config.plusratio:
+        TCplus = ROOT.TCanvas("TCplus","",20,20,config.sizex,config.sizey)
+        TCplus.Divide(1,2)
+        TCplus.cd(1).SetPad(0., config.pluspadratio, 1., 1.);  # top pad
+        TCplus.cd(1).SetBottomMargin(0.001);
+        TCplus.cd(2).SetPad(0., 0., 1., config.pluspadratio);  # bottom pad
+        TCplus.cd(2).SetTopMargin(0);
+        TCplus.cd(2).SetBottomMargin(config.bottommargin/config.pluspadratio); # for x-axis label
+        
+        TCplus.cd(1)
+        if config.xlog:
+            ROOT.gPad.SetLogx()
+        if config.ylog:
+            ROOT.gPad.SetLogy()
+        THSt1.Draw("nostack")
+        TLeg.Draw("")
+        if config.label:
+            Label.Draw("")
+        
+        TCplus.cd(2)
+        THSRatio.GetXaxis().SetTitleOffset(config.titleoffsetx/config.pluspadratio)
+        THSRatio.Draw("nostack")
+        TFconst1.Draw("same")
+        THSRatio.Draw("nostacksame")
+        TRatioLeg.Draw("")
+        #if config.ratio:
+        #    THSRatio.DrawCopy("nostacksame")
+        #if config.ratiolegend:
+
+        
+    
+Save_Plots()
+

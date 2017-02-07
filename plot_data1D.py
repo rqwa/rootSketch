@@ -32,6 +32,10 @@ def Save_Plots():
     if config.ratio:
         TCratio.SaveAs("plots/%s_ratio.pdf"%(config.name))
         TCratio.SaveAs("plots/%s_ratio.png"%(config.name))
+    if config.plusratio:
+        TCplus.SaveAs("plots/%s_plus.pdf"%(config.name))
+        TCplus.SaveAs("plots/%s_plus.png"%(config.name))
+
 
     
 
@@ -43,6 +47,7 @@ fileparser.add_argument("-nm", "--nomarker", action="store_true")
 fileparser.add_argument("-rd", "--ratiodivisor", action="store_true") #Ratio can only be calculated with exactly one input variable chosen
 fileparser.add_argument("-rld", "--ratiolegend", default="", nargs='+')
 fileparser.add_argument("-rnm", "--rationomarker", action="store_true")
+fileparser.add_argument("-sr", "--skipratio", action="store_true")
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-ac", "--alternativecolors", action="store_true")
@@ -73,6 +78,7 @@ parser.add_argument("--xlog", action="store_true")
 parser.add_argument("--xrlog", action="store_true")
 parser.add_argument("--ylog", action="store_true")
 parser.add_argument("--yrlog", action="store_true")
+parser.add_argument("-st", "--stack", action="store_true")
 #ratio config
 parser.add_argument("-mxl", "--morexlables", action="store_true")
 parser.add_argument("-myl", "--moreylables", action="store_true")
@@ -93,6 +99,7 @@ filelegend = ()
 ratiolegend = ()
 skipmarker = ()
 ratioskipmarker = ()
+skipratio = ()
 
 ratiobase = -1
 counter = 0
@@ -108,6 +115,7 @@ with open(sys.argv[1],'r') as f:    #path to file with config of plot
             ratiolegend +=(lineargs.ratiolegend),
             skipmarker +=(lineargs.nomarker),
             ratioskipmarker +=(lineargs.rationomarker),
+            skipratio +=(lineargs.skipratio),
             if lineargs.ratiodivisor:
                 ratiobase = counter
             counter += 1
@@ -259,7 +267,10 @@ if config.tgrapherrors:
     if config.yrange:
         TH1Plot.GetYaxis().SetRangeUser(config.yrange[0],config.yrange[1])
 else:
-    THSt1.Draw("nostack")
+    if config.stack:
+        THSt1.Draw("")
+    else:
+        THSt1.Draw("nostack")
     THSt1.GetXaxis().SetTitle("%s"%(' '.join(config.xtitle)))
     THSt1.GetYaxis().SetTitle("%s"%(' '.join(config.ytitle)))
     if config.xrange:
@@ -282,7 +293,10 @@ if config.tgrapherrors:
     except:
         pass
 else:
-    THSt1.Draw("nostack")
+    if config.stack:
+        THSt1.Draw("")
+    else:
+        THSt1.Draw("nostack")
 
 #TLeg = TC1.BuildLegend()
 #TLeg.AddEntry("","test", "")
@@ -313,11 +327,14 @@ if  config.ratio or config.plusratio:
         print i
         THDiv=TH1Plot[i].Clone()
         THDiv.Sumw2
+        if skipratio[i]:
+            print "skip ratio for "
+            continue
         if i == ratiobase:
             TFconst1.SetLineColor(markertable.get(i)[0])
             TFconst1.SetLineWidth(4)
             TRatioLeg.AddEntry(TFconst1, ("  %s"%(' '.join(ratiolegend[i]))),"l")
-            print "skip event "
+            print "draw const for "
             continue
         if config.ratiobinomialerr:
             THDiv.Divide(TH1Plot[i],TH1Plot[ratiobase],1.,1.,"B")
@@ -376,7 +393,7 @@ if  config.ratio or config.plusratio:
         THSRatio.Draw("nostack")
         TFconst1.Draw("same")
         THSRatio.Draw("nostacksame")
-        TRatioLeg.Draw("")
+        #TRatioLeg.Draw("")
         #if config.ratio:
         #    THSRatio.DrawCopy("nostacksame")
         #if config.ratiolegend:

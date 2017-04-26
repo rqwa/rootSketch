@@ -3,7 +3,7 @@
 #Script to plot data, the data and the related config is loaded by a file passed to the script.
 #The options for the config are read via argparse in the following:
 #All options not specific for input file have to be in the first line of the file
-#All files to plot, with their corresponding options have to written from the second line on
+#All files to plot, with their corresponding options have to written from the second line on, one file per line only
 
 import sys
 import ROOT

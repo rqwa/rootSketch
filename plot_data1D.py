@@ -4,6 +4,9 @@
 #The options for the config are read via argparse in the following:
 #All options not specific for input file have to be in the first line of the file
 #All files to plot, with their corresponding options have to written from the second line on, one file per line only
+#Call with <python (-i) plot_data1D.py #CONFIG_FILE (-b)
+#The option -i stops python from closing automatically instead it goes to prompt
+#The option -b let python run in background
 
 import sys
 import ROOT
@@ -26,6 +29,13 @@ def Read_Data( datafile ):
 
     return FillValues
 
+def Plot_Histo():
+    print "Test Plot_Histo"
+
+def Plot_Ratio():
+    print "Test Plot_Ratio"
+
+
 def Save_Plots():
     TCspectrum.SaveAs("plots/%s.pdf"%(config.name))
     TCspectrum.SaveAs("plots/%s.png"%(config.name))
@@ -37,6 +47,9 @@ def Save_Plots():
         TCplus.SaveAs("plots/%s_plus.png"%(config.name))
 
 
+
+
+
     
 
 fileparser = argparse.ArgumentParser()
@@ -44,16 +57,17 @@ fileparser.add_argument("-f", "--filename")
 fileparser.add_argument("-ld", "--legend", default="", nargs='+')
 fileparser.add_argument("-nc", "--numbercolumns")
 fileparser.add_argument("-nm", "--nomarker", action="store_true")
-fileparser.add_argument("-rd", "--ratiodivisor", action="store_true") #Ratio can only be calculated with exactly one input variable chosen
+fileparser.add_argument("-rd", "--ratiodivisor", action="store_true") #Ratio can only be calculated with exactly one input variable chosen as divisor - only works if the same binning is chosen for all files
 fileparser.add_argument("-rld", "--ratiolegend", default="", nargs='+')
 fileparser.add_argument("-rnm", "--rationomarker", action="store_true")
 fileparser.add_argument("-sr", "--skipratio", action="store_true")
+fileparser.add_argument("-fb", "--filebinning")
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-ac", "--alternativecolors", action="store_true")
 parser.add_argument("-bc", "--bincenter") #This option will only work with tgrapherrors
 parser.add_argument("-bm", "--bottommargin", default=0.1, type=float)
-parser.add_argument("-fb", "--filebining")
+parser.add_argument("-fb", "--filebinning") #This binning is needed even if every file has it's own binning, it defines the size of the base histogram
 parser.add_argument("-lb", "--label", nargs='+')
 parser.add_argument("-lbx", "--labelbox", nargs=4, default=[0.15,0.25,0.6,0.15], type=float)
 parser.add_argument("-lm", "--leftmargin", default=0.08, type=float)
@@ -104,6 +118,8 @@ skipratio = ()
 ratiobase = -1
 counter = 0
 
+config_line = ''
+
 filecheck = ['-f ','--filename ']
 
 with open(sys.argv[1],'r') as f:    #path to file with config of plot
@@ -120,10 +136,19 @@ with open(sys.argv[1],'r') as f:    #path to file with config of plot
                 ratiobase = counter
             counter += 1
         else:
-            config_line = li
+            li = li.strip()
+            li = li.strip('\n')
+            if '-' in li:
+                config_line += li 
+                config_line += ' '
+            else:
+                print ('Line \"' + li +'\" does not start with an option for a variable')
+            print config_line
 
 
 config = parser.parse_args(config_line.split())
+#print config
+
 
 ########## ROOT config
 
@@ -160,7 +185,7 @@ else:
 
 ########## General input
 
-FileBinning = open(config.filebining,'r')
+FileBinning = open(config.filebinning,'r')
 
 BinEdges = []
 for li in FileBinning:

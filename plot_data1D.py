@@ -29,6 +29,10 @@ def Read_Data( datafile ):
 
     return FillValues
 
+def Read_hep_data( datafile ):
+
+    return Fillvalues
+
 def Plot_Histo():
     print "Test Plot_Histo"
 
@@ -394,6 +398,8 @@ if  config.ratio or config.plusratio:
     if config.ratiolegend:
         TRatioLeg.Draw("")
 
+    ########## Plot spectrum + ratio
+
     if config.plusratio:
         TCplus = ROOT.TCanvas("TCplus","",20,20,config.sizex,config.sizey)
         TCplus.Divide(1,2)
@@ -403,13 +409,23 @@ if  config.ratio or config.plusratio:
         TCplus.cd(2).SetTopMargin(0);
         TCplus.cd(2).SetBottomMargin(config.bottommargin/config.pluspadratio); # for x-axis label
         
+        TLegPlus = TLeg.Clone("TLegPlus")
+        if config.legendtitle:  #Extend legend size due to shrinked canvas. NEED TO RESET Y1 instead of Y2, because TBox orders Y1 and Y2 by size and the legend position is defined by the top left corner (Y1 > Y2).
+            TLegPlus.SetY1(config.legendposition[1]-((len(filelist)+1)*(0.02*config.markersize))/(1-config.pluspadratio))
+            #TLegPlus.SetY2(config.legendposition[1]-((len(filelist)+1)*(0.02*config.markersize)))
+        else:
+            TLegPlus.SetY1(config.legendposition[1]-(len(filelist)*(0.02*config.markersize))/(1-config.pluspadratio))
+            #TLegPlus.SetY2(config.legendposition[1]-(len(filelist)*(0.02*config.markersize)))
+        
+    
         TCplus.cd(1)
         if config.xlog:
             ROOT.gPad.SetLogx()
         if config.ylog:
             ROOT.gPad.SetLogy()
         THSt1.Draw("nostack")
-        TLeg.Draw("")
+        #TLegPlus.SetY2(0.0)
+        TLegPlus.Draw("")
         if config.label:
             Label.Draw("")
         

@@ -223,6 +223,7 @@ FillValues = []
 
 for i in range (len(filelist)):
     FillValues.append(Read_Data(filelist[i]))
+    print filelist[i]
 
 
 ########## General histogram

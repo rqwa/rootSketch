@@ -229,6 +229,7 @@ for i in range (len(filelist)):
 ########## General histogram
 TCspectrum = ROOT.TCanvas("TCspectrum","",20,20,config.sizex,config.sizey)
 if config.tgrapherrors:
+    #TmultiGraph
     TH1Plot = ROOT.TH1D("TH1Plot",config.title,len(NBins),np.array(BinEdges,'d'))
 else:
     THSt1 = ROOT.THStack("THStack1",config.title)

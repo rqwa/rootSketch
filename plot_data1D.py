@@ -12,15 +12,29 @@ import sys
 import ROOT
 import uncertainties as unc
 from uncertainties import unumpy
+from collections import namedtuple
+from collections import deque #List with fast operations on both sides (right and left)
 import numpy as np
 import argparse 
 
-def Read_Data( datafile ):
-    
-    Converters = dict.fromkeys(range(int(datafile[1])), unc.ufloat_fromstr)
+def Fill_TGE( inputfile ):
+    print ("TGE")
+    return
+
+def Fill_TGAE( inputfile ):
+    print("TGAE")
+    return
+
+def Read_hep_data( inputfile ):
+    #Should work with hep root files and ReadRootFile
+    return
+
+def Read_unumpy( inputfile, columns ):
+    print("unumpy")
+    Converters = dict.fromkeys(range(int(columns)), unc.ufloat_fromstr)
     
     Value0 = np.array(unc.ufloat(0.,0.), dtype=object) #Adding underflow bin
-    Values = np.loadtxt(datafile[0],converters=Converters, dtype=object)
+    Values = np.loadtxt(inputfile,converters=Converters, dtype=object)
     if config.tgrapherrors:
         FillValues = Values
     else:
@@ -29,9 +43,52 @@ def Read_Data( datafile ):
 
     return FillValues
 
-def Read_hep_data( datafile ):
 
-    return Fillvalues
+def Read_Data( datafile ):
+    print datafile
+    with file(datafile) as f:
+        line = f.readline()
+        columns = len(line.split())
+        print ("%s column(s)"%(columns))
+        if "+/-" in line:
+            Read_unumpy( datafile, columns )
+        elif columns >= 2 and columns <=4:
+            Fill_TGE( datafile )
+        elif columns == 6:
+            Fill_TGAE( datafile )
+        else:
+            print("Cannot identify input file format. Not Importing %s."%(datafile))
+
+#Count number of columns and decide what data format (1 column & +/- unumpy, x columns tge, y columns tgae)
+    return
+
+def ReadRootFile( filename ):
+    print (filename)
+    inputfile = ROOT.TFile.Open(filename)
+    #inputfile.ls()
+    objectlist.append(inputfile)
+    #for j in len(rootfile[0]):
+
+def GetFromTDirFile( objname, rootfile ):
+    print (objname)
+    dirfile = rootfile.FindObjectAny(objname)
+    if not dirfile:
+        print ("empty")
+        raise ValueError("Null pointer")
+    else:
+        #print (dirfile)
+        objectlist.append(dirfile)
+
+def GetFromTList( objname, rootlist ):
+    print (objname)
+    listfile = rootlist.FindObject(objname)
+    if not listfile:
+        print ("empty")
+        raise ValueError("Null pointer")
+    else:
+        #print (listfile)
+        objectlist.append(listfile)
+
 
 def Plot_Histo():
     print "Test Plot_Histo"
@@ -59,7 +116,7 @@ def Save_Plots():
 fileparser = argparse.ArgumentParser()
 fileparser.add_argument("-f", "--filename")
 fileparser.add_argument("-ld", "--legend", default="", nargs='+')
-fileparser.add_argument("-nc", "--numbercolumns")
+fileparser.add_argument("-nc", "--numbercolumns") #Define columns for unumpy import. No longer needed? Should be replaced by automatic column detection
 fileparser.add_argument("-nm", "--nomarker", action="store_true")
 fileparser.add_argument("-rd", "--ratiodivisor", action="store_true") #Ratio can only be calculated with exactly one input variable chosen as divisor - only works if the same binning is chosen for all files
 fileparser.add_argument("-rld", "--ratiolegend", default="", nargs='+')
@@ -126,11 +183,15 @@ config_line = ''
 
 filecheck = ['-f ','--filename ']
 
+filedeque = deque()
+fileconfig = 
+
 with open(sys.argv[1],'r') as f:    #path to file with config of plot
     for li in f:
         if any ([x in li for x in filecheck]):
+            #named tuple
             lineargs = fileparser.parse_args(li.split())
-            filelist +=(lineargs.filename, lineargs.numbercolumns),
+            filelist +=(lineargs.filename),
             filelegend +=(lineargs.legend),
             ratiolegend +=(lineargs.ratiolegend),
             skipmarker +=(lineargs.nomarker),
@@ -152,7 +213,8 @@ with open(sys.argv[1],'r') as f:    #path to file with config of plot
 
 config = parser.parse_args(config_line.split())
 #print config
-
+print filelist
+print filelegend
 
 ########## ROOT config
 

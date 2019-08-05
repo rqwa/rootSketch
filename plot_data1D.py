@@ -67,7 +67,6 @@ def ReadRootFile( filename ):
     inputfile = ROOT.TFile.Open(filename)
     #inputfile.ls()
     objectlist.append(inputfile)
-    #for j in len(rootfile[0]):
 
 def GetFromTDirFile( objname, rootfile ):
     print (objname)
@@ -114,7 +113,7 @@ def Save_Plots():
     
 
 fileparser = argparse.ArgumentParser()
-fileparser.add_argument("-f", "--filename")
+fileparser.add_argument("-f", "--filename", nargs='+')
 fileparser.add_argument("-ld", "--legend", default="", nargs='+')
 fileparser.add_argument("-nc", "--numbercolumns") #Define columns for unumpy import. No longer needed? Should be replaced by automatic column detection
 fileparser.add_argument("-nm", "--nomarker", action="store_true")
@@ -183,8 +182,8 @@ config_line = ''
 
 filecheck = ['-f ','--filename ']
 
-filedeque = deque()
-fileconfig = 
+inputdeque = deque()
+fileconfig = namedtuple('fileconfig','path legend ratiolegend skipmarker, skipratiomarker, skipratio divisor')
 
 with open(sys.argv[1],'r') as f:    #path to file with config of plot
     for li in f:
@@ -199,7 +198,13 @@ with open(sys.argv[1],'r') as f:    #path to file with config of plot
             skipratio +=(lineargs.skipratio),
             if lineargs.ratiodivisor:
                 ratiobase = counter
+                #Put the ratiodivisor always on the first place
+                inputdeque.appendleft(fileconfig(lineargs.filename, lineargs.legend, lineargs.ratiolegend, lineargs.nomarker, lineargs.rationomarker, lineargs.skipratio, lineargs.ratiodivisor)) 
+            else:
+                inputdeque.append(fileconfig(lineargs.filename, lineargs.legend, lineargs.ratiolegend, lineargs.nomarker, lineargs.rationomarker, lineargs.skipratio, lineargs.ratiodivisor)) 
             counter += 1
+            
+
         else:
             li = li.strip()
             li = li.strip('\n')
@@ -215,6 +220,86 @@ config = parser.parse_args(config_line.split())
 #print config
 print filelist
 print filelegend
+for idx,inputconf in enumerate(inputdeque):
+    print idx
+    print inputconf
+
+
+
+########## Process input
+
+print "START PROCESSING"
+
+graphlist = []
+ratiographlist = []
+histolist = []
+
+
+for idx,inputconf in enumerate(inputdeque):
+    #print (idx)
+    objectlist = []
+    print (inputconf)
+    listsize = len(inputconf.path)
+    print (listsize)
+    for jdx,listin in enumerate(inputconf.path): #Take element [0] as it represents the object name to be processed
+        print (jdx)
+        print (listin)
+        if jdx is 0: 
+            #open file and decide between root files and text based files
+            if listin.endswith(".root"):
+                ReadRootFile(listin)
+            else:
+                print ("Read values from text based file %s"%(listin))
+                break #Stop processing, as text based files have no substructure
+        else:
+        #else if: (T) 
+            try:
+                if objectlist[jdx-1].InheritsFrom("TDirectoryFile"):
+                    print ("TDirectoryFile")
+                    GetFromTDirFile( listin, objectlist[jdx-1] )
+                elif objectlist[jdx-1].InheritsFrom("TList"):
+                    print ("TList")
+                    GetFromTList( listin, objectlist[jdx-1] )
+                #elif: #TH1 need binning file 
+                #elif: (TGraph) 
+                else:
+                    print ("Unsupported class")
+                    break
+            except Exception as e:
+                print (e)
+                print ("Cannot not process: \'%s\', no inheritance from TObject "%(listin))
+                break
+        #ReadData(infile)
+    print ("%s \n"%(objectlist))
+    try:
+        if objectlist[jdx].InheritsFrom("TH1"):
+            print ("Storing TH1")
+            if inputconf.skipratio == True:
+                #infile[0] = objectlist[jdx]
+                #Store TH1 as TGraphAsymmErrors as no ratio is calculated
+                #Use inputconf for storing and replace path by TGraph
+                graphlist.append(inputconf._replace(path=ROOT.TGraphAsymmErrors(objectlist[jdx]),))
+                #graphlist.append((ROOT.TGraphAsymmErrors(objectlist[jdx]),)+infile[1:])
+                #graphlist.append(objectlist[jdx]+infile[1:])
+            #hist2store = []
+            #hist2store(objectlist[jdx])
+            #hist2store += (infile[1:]),
+            else:
+                #Store TH1 for ratio calculation
+                #Use inputconf for storing and replace path by TGraph
+                histolist.append(inputconf._replace(path=objectlist[jdx],))
+                #histolist.append((objectlist[jdx],)+infile[1:])
+            #    TGraph (TH constructor)
+            #    histolist.append(objectlist[jdx],infile[1:])
+        #elif objectlist[jdx].InheritsFrom("TGraph"):
+        #    histolist.append(objectlist[jdx],infile[1:])
+    except Exception as e:
+        #print (e)
+        print ("Cannot not process: \'%s\', no inheritance from TH1 or TGraph. No plotting.  "%(listin))
+        #break
+
+print ("%s \n"%(histolist))
+print ("%s \n"%(graphlist))
 
 ########## ROOT config
 

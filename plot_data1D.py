@@ -17,49 +17,87 @@ from collections import deque #List with fast operations on both sides (right an
 import numpy as np
 import argparse 
 
-def Fill_TGE( inputfile ):
+def CalcRatio( graph1, graph2 ):
+    print ("Ratio calculation")
+    return
+
+def ReadBinning( bincenter, binwidth ):
+
+    print bincenter
+    print binwidth
+
+    FileBinning = open(inputconf.binning,'r')
+    
+    binedges = []
+
+    for li in FileBinning:
+        splitline = li.split()
+        binedges.append(float(splitline[0]))
+        #print splitline[0]
+    
+    for i in range(len(binedges)-1):
+        bincenter.append((binedges[i]+binedges[i+1])/2)
+        binwidth.append(abs(binedges[i]-binedges[i+1])/2)
+    
+    #print binedges
+    #print bincenter
+    #print binwidth
+    
+def FillTge( inputfile ):
     print ("TGE")
+    objectlist.append(ROOT.TGraphErrors(inputfile))
     return
 
-def Fill_TGAE( inputfile ):
+def FillTgae( inputfile ):
     print("TGAE")
+    objectlist.append(ROOT.TGraphAsymmErrors(inputfile))
     return
 
-def Read_hep_data( inputfile ):
+def ReadHepData( inputfile ):
     #Should work with hep root files and ReadRootFile
+    print ("Read from hep data file not imnplemented. Please try root file from hep data homepage.")
     return
 
-def Read_unumpy( inputfile, columns ):
+def ReadUnumpy( inputfile, columns ):
     print("unumpy")
+    if not inputconf.binning:
+        print( "No binning file given cannot process, unumpy input: %s "%(inputfile))
+        return
     Converters = dict.fromkeys(range(int(columns)), unc.ufloat_fromstr)
     
-    Value0 = np.array(unc.ufloat(0.,0.), dtype=object) #Adding underflow bin
     Values = np.loadtxt(inputfile,converters=Converters, dtype=object)
-    if config.tgrapherrors:
-        FillValues = Values
-    else:
-        FillValues = np.hstack((Value0,Values))
-    #print FillValues
+    BinCenter = []
+    BinXerror = []
+    ReadBinning( BinCenter, BinXerror )
+    #print Values
+    #print BinCenter
+    #print BinXerror
+    if ( len(BinCenter) != len(Values) ) :
+        print( "Size of binning and number of values don't agree. Stopping macro!")
+        return
+    objectlist.append(ROOT.TGraphErrors(len(BinCenter),np.array(BinCenter,'d'),unumpy.nominal_values(Values),np.array(BinXerror,'d'),unumpy.std_devs(Values)))
 
-    return FillValues
+    return 
 
-
-def Read_Data( datafile ):
+def ReadData( datafile ):
+    # Count number of columns and decide what data format 
+    # 1 column & +/- -> unumpy
+    # 2-4 columns -> TGraphErrors
+    # 6 columns -> TGraphAsymmErrors
     print datafile
     with file(datafile) as f:
         line = f.readline()
         columns = len(line.split())
         print ("%s column(s)"%(columns))
         if "+/-" in line:
-            Read_unumpy( datafile, columns )
+            ReadUnumpy( datafile, columns )
         elif columns >= 2 and columns <=4:
-            Fill_TGE( datafile )
+            FillTge( datafile )
         elif columns == 6:
-            Fill_TGAE( datafile )
+            FillTgae( datafile )
         else:
             print("Cannot identify input file format. Not Importing %s."%(datafile))
 
-#Count number of columns and decide what data format (1 column & +/- unumpy, x columns tge, y columns tgae)
     return
 
 def ReadRootFile( filename ):
@@ -89,14 +127,14 @@ def GetFromTList( objname, rootlist ):
         objectlist.append(listfile)
 
 
-def Plot_Histo():
-    print "Test Plot_Histo"
+def PlotHisto():
+    print "Test PlotHisto"
 
-def Plot_Ratio():
-    print "Test Plot_Ratio"
+def PlotRatio():
+    print "Test PlotRatio"
 
 
-def Save_Plots():
+def SavePlots():
     TCspectrum.SaveAs("plots/%s.pdf"%(config.name))
     TCspectrum.SaveAs("plots/%s.png"%(config.name))
     if config.ratio:
@@ -127,7 +165,6 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-ac", "--alternativecolors", action="store_true")
 parser.add_argument("-bc", "--bincenter") #This option will only work with tgrapherrors
 parser.add_argument("-bm", "--bottommargin", default=0.1, type=float)
-parser.add_argument("-fb", "--filebinning") #This binning is needed even if every file has it's own binning, it defines the size of the base histogram
 parser.add_argument("-lb", "--label", nargs='+')
 parser.add_argument("-lbx", "--labelbox", nargs=4, default=[0.15,0.25,0.6,0.15], type=float)
 parser.add_argument("-lm", "--leftmargin", default=0.08, type=float)
@@ -183,7 +220,7 @@ config_line = ''
 filecheck = ['-f ','--filename ']
 
 inputdeque = deque()
-fileconfig = namedtuple('fileconfig','path legend ratiolegend skipmarker, skipratiomarker, skipratio divisor')
+fileconfig = namedtuple('fileconfig','path legend ratiolegend skipmarker, skipratiomarker, skipratio divisor binning')
 
 with open(sys.argv[1],'r') as f:    #path to file with config of plot
     for li in f:
@@ -199,9 +236,9 @@ with open(sys.argv[1],'r') as f:    #path to file with config of plot
             if lineargs.ratiodivisor:
                 ratiobase = counter
                 #Put the ratiodivisor always on the first place
-                inputdeque.appendleft(fileconfig(lineargs.filename, lineargs.legend, lineargs.ratiolegend, lineargs.nomarker, lineargs.rationomarker, lineargs.skipratio, lineargs.ratiodivisor)) 
+                inputdeque.appendleft(fileconfig(lineargs.filename, lineargs.legend, lineargs.ratiolegend, lineargs.nomarker, lineargs.rationomarker, lineargs.skipratio, lineargs.ratiodivisor, lineargs.filebinning)) 
             else:
-                inputdeque.append(fileconfig(lineargs.filename, lineargs.legend, lineargs.ratiolegend, lineargs.nomarker, lineargs.rationomarker, lineargs.skipratio, lineargs.ratiodivisor)) 
+                inputdeque.append(fileconfig(lineargs.filename, lineargs.legend, lineargs.ratiolegend, lineargs.nomarker, lineargs.rationomarker, lineargs.skipratio, lineargs.ratiodivisor, lineargs.filebinning)) 
             counter += 1
             
 
@@ -218,11 +255,13 @@ with open(sys.argv[1],'r') as f:    #path to file with config of plot
 
 config = parser.parse_args(config_line.split())
 #print config
-print filelist
-print filelegend
-for idx,inputconf in enumerate(inputdeque):
-    print idx
-    print inputconf
+#print filelist
+#print filelegend
+#for idx,inputconf in enumerate(inputdeque):
+#    print idx
+#    print inputconf
+
+
 
 
 
@@ -250,7 +289,7 @@ for idx,inputconf in enumerate(inputdeque):
                 ReadRootFile(listin)
             else:
                 print ("Read values from text based file %s"%(listin))
-                break #Stop processing, as text based files have no substructure
+                ReadData( listin )   
         else:
         #else if: (T) 
             try:
@@ -291,16 +330,33 @@ for idx,inputconf in enumerate(inputdeque):
                 #histolist.append((objectlist[jdx],)+infile[1:])
             #    TGraph (TH constructor)
             #    histolist.append(objectlist[jdx],infile[1:])
-        #elif objectlist[jdx].InheritsFrom("TGraph"):
-        #    histolist.append(objectlist[jdx],infile[1:])
+        elif objectlist[jdx].InheritsFrom("TGraph"):
+            print ("Storing TGraph...")
+            graphlist.append(inputconf._replace(path=objectlist[jdx],))
     except Exception as e:
         #print (e)
         print ("Cannot not process: \'%s\', no inheritance from TH1 or TGraph. No plotting.  "%(listin))
         #break
 
+print "Histo list:"
 print ("%s \n"%(histolist))
+print "Graph list:"
 print ("%s \n"%(graphlist))
 
+
+for idx,inputdata in enumerate(graphlist):
+    graph = inputdata.path
+    print graph
+    bins = graph.GetN()
+
+
+    print bins
+    #for i in range(0,bins):
+    #    print i
+    #    print ("points: %s \t %s"%(graph.GetX()[i],graph.GetY()[i]))
+    #    print ("x error: %s \t %s"%(graph.GetErrorXlow(i),graph.GetErrorXhigh(i)))
+    #    print ("y error: %s \t %s"%(graph.GetErrorYlow(i),graph.GetErrorYhigh(i)))
+    
 ########## ROOT config
 
 font2use = 43
@@ -334,56 +390,29 @@ else:
 #print config
 #print filelist
 
-########## General input
-
-FileBinning = open(config.filebinning,'r')
-
-BinEdges = []
-for li in FileBinning:
-    splitline = li.split()
-    BinEdges.append(float(splitline[0]))
-    #print splitline[0]
-
-BinRange = [min(BinEdges),max(BinEdges)]
-
-print BinRange
-
-NBins = BinEdges[0:len(BinEdges)-1]
-
-Bins = []
-Ex = []
-
-for i in range(len(BinEdges)-1):
-    Bins.append((BinEdges[i]+BinEdges[i+1])/2)
-
-print NBins
-print BinEdges
-print Bins
-ex = np.zeros(len(NBins))
-
-#print len(BinEdges)
-
 ########## Data point input
 
 #FillValues = np.zeros((len(filelist),len(BinEdges)-1), dtype=object)
-FillValues = []
-
-for i in range (len(filelist)):
-    FillValues.append(Read_Data(filelist[i]))
-    print filelist[i]
+#FillValues = []
+#
+#for i in range (len(filelist)):
+#    FillValues.append(ReadData(filelist[i]))
+#    print filelist[i]
 
 
 ########## General histogram
 TCspectrum = ROOT.TCanvas("TCspectrum","",20,20,config.sizex,config.sizey)
-if config.tgrapherrors:
-    #TmultiGraph
-    TH1Plot = ROOT.TH1D("TH1Plot",config.title,len(NBins),np.array(BinEdges,'d'))
-else:
-    THSt1 = ROOT.THStack("THStack1",config.title)
-    TH1Plot = []
+#if config.tgrapherrors:
+#    #TmultiGraph
+#    TH1Plot = ROOT.TH1D("TH1Plot",config.title,len(NBins),np.array(BinEdges,'d'))
+#else:
+#    THSt1 = ROOT.THStack("THStack1",config.title)
+#    TH1Plot = []
+#
+#if config.ratio or config.plusratio:
+#    THSRatio = ROOT.THStack("THSRatio","%s_ratio"%(config.title))
 
-if config.ratio or config.plusratio:
-    THSRatio = ROOT.THStack("THSRatio","%s_ratio"%(config.title))
+
 
 if config.xlog:
     ROOT.gPad.SetLogx()
@@ -418,8 +447,6 @@ for i in range(0,len(FillValues)):
         TGE1.SetMarkerColor(markertable.get(i)[0])
         TGE1.SetMarkerStyle(markertable.get(i)[1])
         TGE1.SetMarkerSize(markertable.get(i)[2]*config.markersize)
-        if ( len(BinEdges)-1 != len(FillValues[i]) ) :
-            sys.exit( "Size of binning and number of values don't agree. Stopping macro!")
         TLeg.AddEntry(TGE1, ("  %s"%(' '.join(filelegend[i]))))
     else:
         TH1Plot.append(ROOT.TH1D("TH1Plot","%i"%(i),len(NBins),np.array(BinEdges,'d')))
@@ -590,5 +617,5 @@ if  config.ratio or config.plusratio:
 
         
     
-Save_Plots()
+SavePlots()
 

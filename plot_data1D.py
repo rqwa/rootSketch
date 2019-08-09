@@ -45,12 +45,16 @@ def ReadBinning( bincenter, binwidth ):
     
 def FillTge( inputfile ):
     print ("TGE")
-    objectlist.append(ROOT.TGraphErrors(inputfile))
+    InputTge = ROOT.TGraphErrors(inputfile)
+    InputTge.SetName("%s"%(inputfile))
+    objectlist.append(InputTge)
     return
 
 def FillTgae( inputfile ):
     print("TGAE")
-    objectlist.append(ROOT.TGraphAsymmErrors(inputfile))
+    InputTgae = ROOT.TGraphErrors(inputfile)
+    InputTgae.SetName("%s"%(inputfile))
+    objectlist.append(InputTgae)
     return
 
 def ReadHepData( inputfile ):
@@ -75,7 +79,10 @@ def ReadUnumpy( inputfile, columns ):
     if ( len(BinCenter) != len(Values) ) :
         print( "Size of binning and number of values don't agree. Stopping macro!")
         return
-    objectlist.append(ROOT.TGraphErrors(len(BinCenter),np.array(BinCenter,'d'),unumpy.nominal_values(Values),np.array(BinXerror,'d'),unumpy.std_devs(Values)))
+
+    UnumpyTge = ROOT.TGraphErrors(len(BinCenter),np.array(BinCenter,'d'),unumpy.nominal_values(Values),np.array(BinXerror,'d'),unumpy.std_devs(Values))
+    UnumpyTge.SetName("%s"%inputfile)
+    objectlist.append(UnumpyTge)
 
     return 
 
@@ -233,12 +240,13 @@ with open(sys.argv[1],'r') as f:    #path to file with config of plot
             skipmarker +=(lineargs.nomarker),
             ratioskipmarker +=(lineargs.rationomarker),
             skipratio +=(lineargs.skipratio),
-            if lineargs.ratiodivisor:
-                ratiobase = counter
-                #Put the ratiodivisor always on the first place
-                inputdeque.appendleft(fileconfig(lineargs.filename, lineargs.legend, lineargs.ratiolegend, lineargs.nomarker, lineargs.rationomarker, lineargs.skipratio, lineargs.ratiodivisor, lineargs.filebinning)) 
-            else:
-                inputdeque.append(fileconfig(lineargs.filename, lineargs.legend, lineargs.ratiolegend, lineargs.nomarker, lineargs.rationomarker, lineargs.skipratio, lineargs.ratiodivisor, lineargs.filebinning)) 
+            #if lineargs.ratiodivisor:
+            #    ratiobase = counter
+            #    #Put the ratiodivisor always on the first place
+            #    inputdeque.appendleft(fileconfig(lineargs.filename, lineargs.legend, lineargs.ratiolegend, lineargs.nomarker, lineargs.rationomarker, lineargs.skipratio, lineargs.ratiodivisor, lineargs.filebinning)) 
+            #else:
+            #    inputdeque.append(fileconfig(lineargs.filename, lineargs.legend, lineargs.ratiolegend, lineargs.nomarker, lineargs.rationomarker, lineargs.skipratio, lineargs.ratiodivisor, lineargs.filebinning)) 
+            inputdeque.append(fileconfig(lineargs.filename, lineargs.legend, lineargs.ratiolegend, lineargs.nomarker, lineargs.rationomarker, lineargs.skipratio, lineargs.ratiodivisor, lineargs.filebinning)) 
             counter += 1
             
 
@@ -270,7 +278,7 @@ config = parser.parse_args(config_line.split())
 print "START PROCESSING"
 
 graphlist = []
-ratiographlist = []
+ratiolist = []
 histolist = []
 
 
@@ -343,7 +351,7 @@ print ("%s \n"%(histolist))
 print "Graph list:"
 print ("%s \n"%(graphlist))
 
-
+Divisor = 0
 for idx,inputdata in enumerate(graphlist):
     graph = inputdata.path
     print graph
@@ -351,12 +359,23 @@ for idx,inputdata in enumerate(graphlist):
 
 
     print bins
+    if inputdata.divisor:
+        print ("Divisor: %s"%(graph))
+        Divisor+=1
     #for i in range(0,bins):
     #    print i
     #    print ("points: %s \t %s"%(graph.GetX()[i],graph.GetY()[i]))
     #    print ("x error: %s \t %s"%(graph.GetErrorXlow(i),graph.GetErrorXhigh(i)))
     #    print ("y error: %s \t %s"%(graph.GetErrorYlow(i),graph.GetErrorYhigh(i)))
-    
+
+if  config.ratio or config.plusratio:
+    if Divisor > 1:
+        sys.exit("Cannot calculate ratio, because %s divisors are defined. Expecting only 1!"%(Divisor))
+        
+    elif Divisor < 1:
+        sys.exit("Cannot calculate ratio, because %s divisor are defined. Expecting 1."%(Divisor))
+        
+
 ########## ROOT config
 
 font2use = 43
@@ -381,6 +400,8 @@ ROOT.gStyle.SetTitleFont(font2use,"y")
 ROOT.gStyle.SetTitleYSize(fontsize)
 ROOT.gStyle.SetTitleXSize(fontsize)
 
+
+#Dictionary with combinations of marker, color and size
 if config.alternativecolors:
     markertable = {0:[ROOT.kBlue+2,33,1.7],1:[ROOT.kOrange+10,8,1.0],2:[ROOT.kTeal-6,21,1.0],3:[ROOT.kMagenta+3,34,1.4],4:[ROOT.kBlue+2,22,1.2],5:[ROOT.kPink,23,1.2],6:[ROOT.kOrange+10,29,1.6],7:[ROOT.kTeal+3,21,1.0]}
 else:
@@ -390,18 +411,12 @@ else:
 #print config
 #print filelist
 
-########## Data point input
-
-#FillValues = np.zeros((len(filelist),len(BinEdges)-1), dtype=object)
-#FillValues = []
-#
-#for i in range (len(filelist)):
-#    FillValues.append(ReadData(filelist[i]))
-#    print filelist[i]
-
 
 ########## General histogram
 TCspectrum = ROOT.TCanvas("TCspectrum","",20,20,config.sizex,config.sizey)
+
+MultiSpec = ROOT.TMultiGraph()
+
 #if config.tgrapherrors:
 #    #TmultiGraph
 #    TH1Plot = ROOT.TH1D("TH1Plot",config.title,len(NBins),np.array(BinEdges,'d'))
@@ -439,76 +454,80 @@ if config.label:
     Label.SetTextFont(font2use)
     Label.SetTextSize(fontsize)
     Label.AddEntry("","%s"%(' '.join(config.label)),"")
-    
 
-for i in range(0,len(FillValues)):
-    if config.tgrapherrors:
-        TGE1 = ROOT.TGraphErrors(len(Bins),np.array(Bins,'d'),unumpy.nominal_values(FillValues[i]),ex,unumpy.std_devs(FillValues[i]))
-        TGE1.SetMarkerColor(markertable.get(i)[0])
-        TGE1.SetMarkerStyle(markertable.get(i)[1])
-        TGE1.SetMarkerSize(markertable.get(i)[2]*config.markersize)
-        TLeg.AddEntry(TGE1, ("  %s"%(' '.join(filelegend[i]))))
-    else:
-        TH1Plot.append(ROOT.TH1D("TH1Plot","%i"%(i),len(NBins),np.array(BinEdges,'d')))
-        TH1Plot[i].SetContent(unumpy.nominal_values(FillValues[i]))
-        TH1Plot[i].SetError(unumpy.std_devs(FillValues[i]))
-        TH1Plot[i].SetMarkerColor(markertable.get(i)[0])
-        TH1Plot[i].SetMarkerStyle(markertable.get(i)[1])
-        TH1Plot[i].SetMarkerSize(markertable.get(i)[2]*config.markersize)
-        if ( len(BinEdges) != len(FillValues[i]) ) :
-            sys.exit( "Size of binning and number of values don't agree. Stopping macro!")
-        THSt1.Add(TH1Plot[i])
-        if skipmarker[i]:
-            TLeg.AddEntry("", ("  %s"%(' '.join(filelegend[i]))),"")
-        else:
-            TLeg.AddEntry(TH1Plot[i], ("  %s"%(' '.join(filelegend[i]))))
+
+for idx,graphdata in enumerate(graphlist):
+    graphdata.path.SetMarkerColor(markertable.get(idx)[0])
+    graphdata.path.SetLineColor(markertable.get(idx)[0])
+    graphdata.path.SetLineWidth(2) #May need improvement with config.markersize, but only accepts int
+    graphdata.path.SetMarkerStyle(markertable.get(idx)[1])
+    graphdata.path.SetMarkerSize(markertable.get(idx)[2]*config.markersize)
+    TLeg.AddEntry(graphdata.path, ("  %s"%(' '.join(graphdata.legend))))
+    if graphdata.skipmarker:
+        TLeg.AddEntry("", ("  %s"%(' '.join(graphdata.legend))),"")
+    MultiSpec.Add(graphdata.path)
+
+MultiSpec.Draw("AP")
+
+MultiSpec.SetTitle("%s;%s;%s"%(' '.join(config.title),' '.join(config.xtitle),' '.join(config.ytitle)))
+#MultiSpec.GetXaxis().SetTitle(config.xtitle)
+#MultiSpec.GetYaxis().SetTitle(config.ytitle)
     
-    
-if config.tgrapherrors:
-    TH1Plot.GetXaxis().SetTitle(config.xtitle)
-    TH1Plot.GetYaxis().SetTitle(config.ytitle)
-    if config.xrange:
-        TH1Plot.GetXaxis().SetRangeUser(config.xrange[0],config.xrange[1])
-    if config.yrange:
-        TH1Plot.GetYaxis().SetRangeUser(config.yrange[0],config.yrange[1])
-else:
-    if config.stack:
-        THSt1.Draw("")
-    else:
-        THSt1.Draw("nostack")
-    THSt1.GetXaxis().SetTitle("%s"%(' '.join(config.xtitle)))
-    THSt1.GetYaxis().SetTitle("%s"%(' '.join(config.ytitle)))
-    if config.xrange:
-        THSt1.GetXaxis().SetRangeUser(config.xrange[0],config.xrange[1])
-        print "set x-range"
-    if config.yrange:
-        THSt1.SetMinimum(config.yrange[0])
-        THSt1.SetMaximum(config.yrange[1])
-        print "set y-range"
-    if config.morexlables:
-        THSt1.GetXaxis().SetMoreLogLabels(True)
+if config.xrange:
+    MultiSpec.GetHistogram().GetXaxis().SetRangeUser(config.xrange[0],config.xrange[1])
+if config.yrange:
+    MultiSpec.GetHistogram().GetYaxis().SetRangeUser(config.yrange[0],config.yrange[1])
+#if config.tgrapherrors:
+#    TH1Plot.GetXaxis().SetTitle(config.xtitle)
+#    TH1Plot.GetYaxis().SetTitle(config.ytitle)
+#    if config.xrange:
+#        TH1Plot.GetXaxis().SetRangeUser(config.xrange[0],config.xrange[1])
+#    if config.yrange:
+#        TH1Plot.GetYaxis().SetRangeUser(config.yrange[0],config.yrange[1])
+#else:
+#    if config.stack:
+#        THSt1.Draw("")
+#    else:
+#        THSt1.Draw("nostack")
+#    THSt1.GetXaxis().SetTitle("%s"%(' '.join(config.xtitle)))
+#    THSt1.GetYaxis().SetTitle("%s"%(' '.join(config.ytitle)))
+#    if config.xrange:
+#        THSt1.GetXaxis().SetRangeUser(config.xrange[0],config.xrange[1])
+#        print "set x-range"
+#    if config.yrange:
+#        THSt1.SetMinimum(config.yrange[0])
+#        THSt1.SetMaximum(config.yrange[1])
+#        print "set y-range"
+#    if config.morexlables:
+#        THSt1.GetXaxis().SetMoreLogLabels(True)
 
 
 ########## Plot spectrum
 
-if config.tgrapherrors:
-    try:
-        TH1Plot.DrawCopy()
-        TGE1.Draw("sameP")
-    except:
-        pass
-else:
-    if config.stack:
-        THSt1.Draw("")
-    else:
-        THSt1.Draw("nostack")
+#if config.tgrapherrors:
+#    try:
+#        TH1Plot.DrawCopy()
+#        TGE1.Draw("sameP")
+#    except:
+#        pass
+#else:
+#    if config.stack:
+#        THSt1.Draw("")
+#    else:
+#        THSt1.Draw("nostack")
 
 #TLeg = TC1.BuildLegend()
 #TLeg.AddEntry("","test", "")
+
+
+
 TLeg.Draw("")
 
 if config.label:
     Label.Draw("")
+
+ROOT.gPad.Modified()
+ROOT.gPad.Update()
 
 
 
@@ -617,5 +636,5 @@ if  config.ratio or config.plusratio:
 
         
     
-SavePlots()
+#SavePlots()
 

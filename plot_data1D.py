@@ -245,8 +245,7 @@ def SavePlots():
     for oformat in config.outputformat:
         TCspectrum.SaveAs("plots/%s.%s"%(config.name,oformat))
         if config.ratio:
-            TCratio.SaveAs("plots/%s_ratio.%s"%(config.name,oformat))
-            TCratio2.SaveAs("plots/%s_gratio.%s"%(config.name,oformat))
+            TCratio.SaveAs("plots/%s_gratio.%s"%(config.name,oformat))
         if config.plusratio:
             TCplus.SaveAs("plots/%s_plus.%s"%(config.name,oformat))
 
@@ -330,14 +329,8 @@ fileconfig = namedtuple('fileconfig','path legend ratiolegend skipmarker skiprat
 with open(sys.argv[1],'r') as f:    #path to file with config of plot
     for li in f:
         if any ([x in li for x in filecheck]):
-            #named tuple
             lineargs = fileparser.parse_args(li.split())
-            filelist +=(lineargs.filename),
-            filelegend +=(lineargs.legend),
-            ratiolegend +=(lineargs.ratiolegend),
-            skipmarker +=(lineargs.nomarker),
-            ratioskipmarker +=(lineargs.rationomarker),
-            skipratio +=(lineargs.skipratio),
+#Alternative storing scheme to store ratio divisor always at first object
             #if lineargs.ratiodivisor:
             #    ratiobase = counter
             #    #Put the ratiodivisor always on the first place
@@ -377,7 +370,6 @@ print "START PROCESSING"
 
 graphlist = []
 ratiolist = []
-histolist = []
 
 
 for idx,inputconf in enumerate(inputdeque):
@@ -397,7 +389,6 @@ for idx,inputconf in enumerate(inputdeque):
                 print ("Read values from text based file %s"%(listin))
                 ReadData( listin )   
         else:
-        #else if: (T) 
             try:
                 if objectlist[jdx-1].InheritsFrom("TDirectoryFile"):
                     print ("TDirectoryFile")
@@ -405,8 +396,6 @@ for idx,inputconf in enumerate(inputdeque):
                 elif objectlist[jdx-1].InheritsFrom("TList"):
                     print ("TList")
                     GetFromTList( listin, objectlist[jdx-1] )
-                #elif: #TH1 need binning file 
-                #elif: (TGraph) 
                 else:
                     print ("Unsupported class")
                     break
@@ -414,29 +403,11 @@ for idx,inputconf in enumerate(inputdeque):
                 print (e)
                 print ("Cannot not process: \'%s\', no inheritance from TObject "%(listin))
                 break
-        #ReadData(infile)
     print ("%s \n"%(objectlist))
     try:
         if objectlist[jdx].InheritsFrom("TH1"):
-            print ("Storing TH1")
-            if inputconf.skipratio == True:
-                #infile[0] = objectlist[jdx]
-                #Store TH1 as TGraphAsymmErrors as no ratio is calculated
                 #Use inputconf for storing and replace path by TGraph
-                graphlist.append(inputconf._replace(path=ROOT.TGraphAsymmErrors(objectlist[jdx]),))
-                #graphlist.append((ROOT.TGraphAsymmErrors(objectlist[jdx]),)+infile[1:])
-                #graphlist.append(objectlist[jdx]+infile[1:])
-            #hist2store = []
-            #hist2store(objectlist[jdx])
-            #hist2store += (infile[1:]),
-            else:
-                #Store TH1 for ratio calculation
-                #Use inputconf for storing and replace path by TGraph
-                histolist.append(inputconf._replace(path=objectlist[jdx],))
-                graphlist.append(inputconf._replace(path=ROOT.TGraphAsymmErrors(objectlist[jdx]),))
-                #histolist.append((objectlist[jdx],)+infile[1:])
-            #    TGraph (TH constructor)
-            #    histolist.append(objectlist[jdx],infile[1:])
+            graphlist.append(inputconf._replace(path=ROOT.TGraphAsymmErrors(objectlist[jdx]),))
         elif objectlist[jdx].InheritsFrom("TGraph"):
             print ("Storing TGraph...")
             graphlist.append(inputconf._replace(path=objectlist[jdx],))
@@ -445,8 +416,6 @@ for idx,inputconf in enumerate(inputdeque):
         print ("Cannot not process: \'%s\', no inheritance from TH1 or TGraph. No plotting.  "%(listin))
         #break
 
-print "Histo list:"
-print ("%s \n"%(histolist))
 print "Graph list:"
 print ("%s \n"%(graphlist))
 
@@ -477,13 +446,6 @@ if  config.ratio or config.plusratio:
     elif Divisor < 1:
         sys.exit("Cannot calculate ratio, because %s divisor are defined. Expecting 1."%(Divisor))
         
-for idx,inputdata in enumerate(histolist):
-    graph = inputdata.path
-    print graph
-
-    if inputdata.divisor:
-        print ("Divisor: %s"%(graph))
-        DivPos2 = idx
 
 ########## ROOT config
 
@@ -526,13 +488,6 @@ TCspectrum = ROOT.TCanvas("TCspectrum","",20,20,config.sizex,config.sizey)
 
 MultiSpec = ROOT.TMultiGraph()
 
-#if config.tgrapherrors:
-#    #TmultiGraph
-#    TH1Plot = ROOT.TH1D("TH1Plot",config.title,len(NBins),np.array(BinEdges,'d'))
-#else:
-#    THSt1 = ROOT.THStack("THStack1",config.title)
-#    TH1Plot = []
-#
 #if config.ratio or config.plusratio:
 #    THSRatio = ROOT.THStack("THSRatio","%s_ratio"%(config.title))
 
@@ -579,8 +534,6 @@ for idx,graphdata in enumerate(graphlist):
 MultiSpec.Draw("AP")
 
 MultiSpec.SetTitle("%s;%s;%s"%(' '.join(config.title),' '.join(config.xtitle),' '.join(config.ytitle)))
-#MultiSpec.GetXaxis().SetTitle(config.xtitle)
-#MultiSpec.GetYaxis().SetTitle(config.ytitle)
     
 if config.xrange:
     MultiSpec.GetXaxis().SetRangeUser(config.xrange[0],config.xrange[1])
@@ -590,49 +543,6 @@ if config.morexlables:
     MultiSpec.GetXaxis().SetMoreLogLabels(True)
 if config.moreylables:
     MultiSpec.GetYaxis().SetMoreLogLabels(True)
-#if config.tgrapherrors:
-#    TH1Plot.GetXaxis().SetTitle(config.xtitle)
-#    TH1Plot.GetYaxis().SetTitle(config.ytitle)
-#    if config.xrange:
-#        TH1Plot.GetXaxis().SetRangeUser(config.xrange[0],config.xrange[1])
-#    if config.yrange:
-#        TH1Plot.GetYaxis().SetRangeUser(config.yrange[0],config.yrange[1])
-#else:
-#    if config.stack:
-#        THSt1.Draw("")
-#    else:
-#        THSt1.Draw("nostack")
-#    THSt1.GetXaxis().SetTitle("%s"%(' '.join(config.xtitle)))
-#    THSt1.GetYaxis().SetTitle("%s"%(' '.join(config.ytitle)))
-#    if config.xrange:
-#        THSt1.GetXaxis().SetRangeUser(config.xrange[0],config.xrange[1])
-#        print "set x-range"
-#    if config.yrange:
-#        THSt1.SetMinimum(config.yrange[0])
-#        THSt1.SetMaximum(config.yrange[1])
-#        print "set y-range"
-#    if config.morexlables:
-#        THSt1.GetXaxis().SetMoreLogLabels(True)
-
-
-########## Plot spectrum
-
-#if config.tgrapherrors:
-#    try:
-#        TH1Plot.DrawCopy()
-#        TGE1.Draw("sameP")
-#    except:
-#        pass
-#else:
-#    if config.stack:
-#        THSt1.Draw("")
-#    else:
-#        THSt1.Draw("nostack")
-
-#TLeg = TC1.BuildLegend()
-#TLeg.AddEntry("","test", "")
-
-
 
 TLeg.Draw("")
 
@@ -654,32 +564,30 @@ print config.xratiorange
 
 
 if  config.ratio or config.plusratio:
-    TCratio2 = ROOT.TCanvas("TCratio2","",20,20,config.sizex,config.sizey)
+    TCratio = ROOT.TCanvas("TCratio","",20,20,config.sizex,config.sizey)
     MultiRatio = ROOT.TMultiGraph()
 
-    TRatioLeg2 = ROOT.TLegend(config.ratiolegendposition[0],config.ratiolegendposition[1],config.ratiolegendposition[0]+0.25,config.ratiolegendposition[1]-(len(filelist)-1)*(0.02*config.markersize))
-    TRatioLeg2.SetFillColor(0)
-    TRatioLeg2.SetMargin(0.075*config.markersize)
-    TRatioLeg2.SetBorderSize(0)
-    TRatioLeg2.SetTextFont(font2use)
-    TRatioLeg2.SetTextSize(fontsize)
+    TRatioLeg = ROOT.TLegend(config.ratiolegendposition[0],config.ratiolegendposition[1],config.ratiolegendposition[0]+0.25,config.ratiolegendposition[1]-(len(filelist)-1)*(0.02*config.markersize))
+    TRatioLeg.SetFillColor(0)
+    TRatioLeg.SetMargin(0.075*config.markersize)
+    TRatioLeg.SetBorderSize(0)
+    TRatioLeg.SetTextFont(font2use)
+    TRatioLeg.SetTextSize(fontsize)
 
-    TFconst1g = ROOT.TF1("TFconst1g","1.",config.xratiorange[0],config.xratiorange[1])
+    TFconst1 = ROOT.TF1("TFconst1","1.",config.xratiorange[0],config.xratiorange[1])
     for idx,graphdata in enumerate(graphlist):
         if graphdata.skipratio:
             continue
         if graphdata.divisor:
-            TFconst1g.SetLineColor(markertable.get(idx)[0])
-            TFconst1g.SetLineWidth(4)
-            TRatioLeg2.AddEntry(TFconst1g, ("  %s"%(' '.join(graphdata.legend))),"l")
+            TFconst1.SetLineColor(markertable.get(idx)[0])
+            TFconst1.SetLineWidth(4)
+            TRatioLeg.AddEntry(TFconst1, ("  %s"%(' '.join(graphdata.legend))),"l")
             continue
-        #ratiocalc
         if graphdata.skipratiomarker:
-            TRatioLeg2.AddEntry("", ("  %s"%(' '.join(graphdata.legend))),"")
+            TRatioLeg.AddEntry("", ("  %s"%(' '.join(graphdata.legend))),"")
         else:
-            TRatioLeg2.AddEntry(graphdata.path, ("  %s"%(' '.join(graphdata.legend))),"p")
+            TRatioLeg.AddEntry(graphdata.path, ("  %s"%(' '.join(graphdata.legend))),"p")
 
-        #MultiRatio.Add(CalcRatio(graphdata.path,graphlist[DivPos].path))
         CalcRatio(graphdata.path,graphlist[DivPos].path)
 
     MultiRatio.Draw("AP")
@@ -692,118 +600,53 @@ if  config.ratio or config.plusratio:
     if config.yratiorange:
         MultiRatio.GetYaxis().SetRangeUser(config.yratiorange[0],config.yratiorange[1])
     
-    TFconst1g.Draw("same")
+    TFconst1.Draw("same")
     if config.ratiolegend:
-        TRatioLeg2.Draw("")
+        TRatioLeg.Draw("")
 
     ROOT.gPad.Modified()
     ROOT.gPad.Update()
 
-        
-    
+########## Plot spectrum + ratio
 
-########## Ratio histogram
-
-if  config.ratio or config.plusratio:
-    THSRatio = ROOT.THStack("THStackRatio",config.title)
-    
-    TRatioLeg = ROOT.TLegend(config.ratiolegendposition[0],config.ratiolegendposition[1],config.ratiolegendposition[0]+0.25,config.ratiolegendposition[1]-(len(filelist)-1)*(0.02*config.markersize))
-    TRatioLeg.SetFillColor(0)
-    TRatioLeg.SetMargin(0.075*config.markersize)
-    TRatioLeg.SetBorderSize(0)
-    TRatioLeg.SetTextFont(font2use)
-    TRatioLeg.SetTextSize(fontsize)
-
-    TFconst1 = ROOT.TF1("TFconst1","1.",config.xratiorange[0],config.xratiorange[1])
-    
-    
-    
-    for idx,ihist in enumerate(histolist):
-        print idx
-        THDiv=ihist.path.Clone()
-        THDiv.Sumw2
-        if ihist.skipratio:
-            print "skip ratio for "
-            continue
-        if ihist.divisor:
-            TFconst1.SetLineColor(markertable.get(idx)[0])
-            TFconst1.SetLineWidth(4)
-            TRatioLeg.AddEntry(TFconst1, ("  %s"%(' '.join(ihist.legend))),"l")
-            print "draw const for "
-            continue
-        if config.ratiobinomialerr:
-            THDiv.Divide(ihist.path,histolist[DivPos2].path,1.,1.,"B")
-            print "Bionmial errors used"
-        else:
-            THDiv.Divide(ihist.path,histolist[DivPos2].path)
-        if ihist.skipratiomarker:
-            TRatioLeg.AddEntry("", ("  %s"%(' '.join(ihist.legend))),"")
-        else:
-            TRatioLeg.AddEntry(ihist.path, ("  %s"%(' '.join(ihist.legend))),"p")
-        THSRatio.Add(THDiv)
-    
-    
-    TCratio = ROOT.TCanvas("TCratio","",20,20,config.sizex,config.sizey)
-    THSRatio.Draw("nostack")
-    THSRatio.GetXaxis().SetTitle("%s"%(' '.join(config.xtitle)))
-    if config.xratiorange:
-        THSRatio.GetXaxis().SetRangeUser(config.xratiorange[0],config.xratiorange[1])
-        print "set x-range"
-    
-    if config.yratiorange:
-        THSRatio.SetMinimum(config.yratiorange[0])
-        THSRatio.SetMaximum(config.yratiorange[1])
-        print "set y-range"
-    
-    
-    ########## Plot ratio
-    
-    if config.ratio:
-        TFconst1.Draw("same")
-        THSRatio.Draw("nostacksame")
-    if config.ratiolegend:
-        TRatioLeg.Draw("")
-
-    ########## Plot spectrum + ratio
-
-    if config.plusratio:
-        TCplus = ROOT.TCanvas("TCplus","",20,20,config.sizex,config.sizey)
-        TCplus.Divide(1,2)
-        TCplus.cd(1).SetPad(0., config.pluspadratio, 1., 1.);  # top pad
-        TCplus.cd(1).SetBottomMargin(0.001);
-        TCplus.cd(2).SetPad(0., 0., 1., config.pluspadratio);  # bottom pad
-        TCplus.cd(2).SetTopMargin(0);
-        TCplus.cd(2).SetBottomMargin(config.bottommargin/config.pluspadratio); # for x-axis label
-        
-        TLegPlus = TLeg.Clone("TLegPlus")
-        if config.legendtitle:  #Extend legend size due to shrinked canvas. NEED TO RESET Y1 instead of Y2, because TBox orders Y1 and Y2 by size and the legend position is defined by the top left corner (Y1 > Y2).
-            TLegPlus.SetY1(config.legendposition[1]-((len(filelist)+1)*(0.02*config.markersize))/(1-config.pluspadratio))
-            #TLegPlus.SetY2(config.legendposition[1]-((len(filelist)+1)*(0.02*config.markersize)))
-        else:
-            TLegPlus.SetY1(config.legendposition[1]-(len(filelist)*(0.02*config.markersize))/(1-config.pluspadratio))
-            #TLegPlus.SetY2(config.legendposition[1]-(len(filelist)*(0.02*config.markersize)))
-        
-    
-        TCplus.cd(1)
-        if config.xlog:
-            ROOT.gPad.SetLogx()
-        if config.ylog:
-            ROOT.gPad.SetLogy()
-        THSt1.Draw("nostack")
-        #TLegPlus.SetY2(0.0)
-        TLegPlus.Draw("")
-        if config.label:
-            Label.Draw("")
-        
-        TCplus.cd(2)
-        THSRatio.GetXaxis().SetTitleOffset(config.titleoffsetx/config.pluspadratio)
-        THSRatio.Draw("nostack")
-        TFconst1.Draw("same")
-        THSRatio.Draw("nostacksame")
-        #TRatioLeg.Draw("")
-        #if config.ratio:
-        #    THSRatio.DrawCopy("nostacksame")
-        #if config.ratiolegend:
+#    if config.plusratio:
+#        TCplus = ROOT.TCanvas("TCplus","",20,20,config.sizex,config.sizey)
+#        TCplus.Divide(1,2)
+#        TCplus.cd(1).SetPad(0., config.pluspadratio, 1., 1.);  # top pad
+#        TCplus.cd(1).SetBottomMargin(0.001);
+#        TCplus.cd(2).SetPad(0., 0., 1., config.pluspadratio);  # bottom pad
+#        TCplus.cd(2).SetTopMargin(0);
+#        TCplus.cd(2).SetBottomMargin(config.bottommargin/config.pluspadratio); # for x-axis label
+#        
+#        TLegPlus = TLeg.Clone("TLegPlus")
+#        if config.legendtitle:  #Extend legend size due to shrinked canvas. NEED TO RESET Y1 instead of Y2, because TBox orders Y1 and Y2 by size and the legend position is defined by the top left corner (Y1 > Y2).
+#            TLegPlus.SetY1(config.legendposition[1]-((len(filelist)+1)*(0.02*config.markersize))/(1-config.pluspadratio))
+#            #TLegPlus.SetY2(config.legendposition[1]-((len(filelist)+1)*(0.02*config.markersize)))
+#        else:
+#            TLegPlus.SetY1(config.legendposition[1]-(len(filelist)*(0.02*config.markersize))/(1-config.pluspadratio))
+#            #TLegPlus.SetY2(config.legendposition[1]-(len(filelist)*(0.02*config.markersize)))
+#        
+#    
+#        TCplus.cd(1)
+#        if config.xlog:
+#            ROOT.gPad.SetLogx()
+#        if config.ylog:
+#            ROOT.gPad.SetLogy()
+#        THSt1.Draw("nostack")
+#        #TLegPlus.SetY2(0.0)
+#        TLegPlus.Draw("")
+#        if config.label:
+#            Label.Draw("")
+#        
+#        TCplus.cd(2)
+#        THSRatio.GetXaxis().SetTitleOffset(config.titleoffsetx/config.pluspadratio)
+#        THSRatio.Draw("nostack")
+#        TFconst1.Draw("same")
+#        THSRatio.Draw("nostacksame")
+#        #TRatioLeg.Draw("")
+#        #if config.ratio:
+#        #    THSRatio.DrawCopy("nostacksame")
+#        #if config.ratiolegend:
 
         
     

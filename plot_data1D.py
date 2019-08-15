@@ -14,11 +14,111 @@ import uncertainties as unc
 from uncertainties import unumpy
 from collections import namedtuple
 from collections import deque #List with fast operations on both sides (right and left)
+from math import sqrt
 import numpy as np
 import argparse 
 
 def CalcRatio( graph1, graph2 ):
     print ("Ratio calculation")
+    bins1 = graph1.GetN()
+    bins2 = graph2.GetN()
+    if (bins1 != bins2):
+        print bins1, bins2
+        print ("Graph %s and graph %s have different binning, no ratio calculation"%(graph1,graph2))
+        return
+    #Implement alternative which works for diffferent binnings and looks up the corresponding bins for ratio calculation
+    
+
+    RatioGraph = ROOT.TGraphAsymmErrors()
+    for i in range(0,bins1):
+        #print i
+        x1 = graph1.GetX()[i]
+        x2 = graph2.GetX()[i]
+        x1low = graph1.GetErrorXlow(i)
+        x2low = graph2.GetErrorXlow(i)
+        x1up = graph1.GetErrorXhigh(i)
+        x2up = graph2.GetErrorXhigh(i)
+        if (x1 != x2 ) or (x1low != x2low ) or (x1up != x2up):
+            print ("Binning of both graphs do not agree, no ratio calculation")
+            print ("Bin center: %s \t %s"%(x1,x2))
+            print ("Bin low edge: %s \t %s"%(x1low,x2low))
+            print ("Bin up edge: %s \t %s"%(x1up,x2up))
+            return
+        y1 = graph1.GetY()[i]
+        y2 = graph2.GetY()[i]
+        e1low = graph1.GetErrorYlow(i)
+        e2low = graph2.GetErrorYlow(i)
+        e1up = graph1.GetErrorYhigh(i)
+        e2up = graph2.GetErrorYhigh(i)
+        y1sq = y1*y1
+        y2sq = y2*y2
+        e1lowsq = e1low*e1low
+        e2lowsq = e2low*e2low
+        e1upsq = e1up*e1up
+        e2upsq = e2up*e2up
+        
+        try:
+            y_ratio = y1/y2
+        except ZeroDivisionError:
+            y_ratio = 0
+
+        if config.ratiobinomialerr:
+            #print ("Use binomial error propagation")
+            if (y1 ==y2):
+                e_low = 0
+                e_up = 0
+            else:
+                e_low  = sqrt(abs( ( (1 - 2* y1 / y2 ) * e1lowsq + y1sq * e2lowsq / y2sq )/(y2sq) ))
+                e_up = sqrt(abs( ( (1 - 2* y1 / y2 ) * e1upsq  + y1sq * e2upsq  / y2sq )/(y2sq) ))
+        else:
+            try:
+                e_low = sqrt( ( e1lowsq * y2sq + e2lowsq * y1sq ) / ( y2sq * y2sq ) )
+                e_up = sqrt( ( e1upsq * y2sq + e2upsq * y1sq ) / ( y2sq * y2sq ) )
+            except ZeroDivisionError:
+                e_low = 0
+                e_up = 0
+        #print e_low, e_up
+        
+        RatioGraph.SetPoint(i,x1,y_ratio)
+        RatioGraph.SetPointError(i,x1low,x1up,e_low,e_up)
+        
+    MultiRatio.Add(RatioGraph)
+
+    return
+
+
+            
+
+
+  #        Double_t b1 = h1->RetrieveBinContent(i);
+  #        Double_t b2 = h2->RetrieveBinContent(i);
+  #          if (b2 == 0) { fSumw2.fArray[i] = 0; continue; }
+  #        Double_t b1sq = b1 * b1; Double_t b2sq = b2 * b2; #Content
+  #        Double_t c1sq = c1 * c1; Double_t c2sq = c2 * c2; #scaling
+  #        Double_t e1sq = h1->GetBinErrorSqUnchecked(i); Error
+  #        Double_t e2sq = h2->GetBinErrorSqUnchecked(i); Error
+  #        if (binomial) {
+  #           if (b1 != b2) {
+  #              // in the case of binomial statistics c1 and c2 must be 1 otherwise it does not make sense
+  #              // c1 and c2 are ignored
+  #              //fSumw2.fArray[bin] = TMath::Abs(w*(1-w)/(c2*b2));//this is the formula in Hbook/Hoper1
+  #              //fSumw2.fArray[bin] = TMath::Abs(w*(1-w)/b2);     // old formula from G. Flucke
+  #              // formula which works also for weighted histogram (see http://root-forum.cern.ch/viewtopic.php?t=3753 )
+  #              fSumw2.fArray[i] = TMath::Abs( ( (1. - 2.* b1 / b2) * e1sq  + b1sq * e2sq / b2sq ) / b2sq );
+  #           } else {
+  #              //in case b1=b2 error is zero
+  #              //use  TGraphAsymmErrors::BayesDivide for getting the asymmetric error not equal to zero
+  #              fSumw2.fArray[i] = 0;
+  #           }
+  #        } else {
+  #           fSumw2.fArray[i] = c1sq * c2sq * (e1sq * b2sq + e2sq * b1sq) / (c2sq * c2sq * b2sq * b2sq);
+  #           fSumw2.fArray[i] = (e1sq * b2sq + e2sq * b1sq) / ( b2sq * b2sq);
+  #        }
+  #}
+
+
+    #    print ("y error: %s \t %s"%(graph.GetErrorYlow(i),graph.GetErrorYhigh(i)))
+
     return
 
 def ReadBinning( bincenter, binwidth ):
@@ -142,14 +242,13 @@ def PlotRatio():
 
 
 def SavePlots():
-    TCspectrum.SaveAs("plots/%s.pdf"%(config.name))
-    TCspectrum.SaveAs("plots/%s.png"%(config.name))
-    if config.ratio:
-        TCratio.SaveAs("plots/%s_ratio.pdf"%(config.name))
-        TCratio.SaveAs("plots/%s_ratio.png"%(config.name))
-    if config.plusratio:
-        TCplus.SaveAs("plots/%s_plus.pdf"%(config.name))
-        TCplus.SaveAs("plots/%s_plus.png"%(config.name))
+    for oformat in config.outputformat:
+        TCspectrum.SaveAs("plots/%s.%s"%(config.name,oformat))
+        if config.ratio:
+            TCratio.SaveAs("plots/%s_ratio.%s"%(config.name,oformat))
+            TCratio2.SaveAs("plots/%s_gratio.%s"%(config.name,oformat))
+        if config.plusratio:
+            TCplus.SaveAs("plots/%s_plus.%s"%(config.name,oformat))
 
 
 
@@ -184,7 +283,6 @@ parser.add_argument("-s", "--save", action="store_true")
 parser.add_argument("-sx", "--sizex", default=1200, type=int)
 parser.add_argument("-sy", "--sizey", default=900, type =int)
 parser.add_argument("-t", "--title", default="")
-parser.add_argument("-tge", "--tgrapherrors", action="store_true")
 parser.add_argument("-tm", "--topmargin", default=0.04, type=float)
 parser.add_argument("-tox", "--titleoffsetx", default=1., type=float)
 parser.add_argument("-toy", "--titleoffsety", default=1., type=float)
@@ -198,17 +296,17 @@ parser.add_argument("--ylog", action="store_true")
 parser.add_argument("--yrlog", action="store_true")
 parser.add_argument("-st", "--stack", action="store_true")
 #ratio config
-parser.add_argument("-mxl", "--morexlables", action="store_true")
-parser.add_argument("-myl", "--moreylables", action="store_true")
+parser.add_argument("-mxl", "--morexlables", action="store_true") #Only works with log axis
+parser.add_argument("-myl", "--moreylables", action="store_true") #Only works with log axis
 parser.add_argument("-pr", "--plusratio", action="store_true")
-parser.add_argument("-ppr", "--pluspadratio", default=0.3, type=float)
+parser.add_argument("-ppr", "--pluspadaratio", default=0.3, type=float)
 parser.add_argument("-r", "--ratio", action="store_true")
 parser.add_argument("-rbe", "--ratiobinomialerr", action="store_true")
 parser.add_argument("-rl", "--ratiolegend", action="store_true")
 parser.add_argument("-rlp", "--ratiolegendposition", nargs =2, default=[0.5,0.8], type=float) #Defines top left corner of TLegend
 parser.add_argument("-xrr", "--xratiorange", nargs=2, type=float)
 parser.add_argument("-yrr", "--yratiorange", nargs=2, type=float)
-
+parser.add_argument("-of", "--outputformat", nargs='+', default=["pdf","png"])
 
 #parser.add_argument("-", "--")
 
@@ -227,7 +325,7 @@ config_line = ''
 filecheck = ['-f ','--filename ']
 
 inputdeque = deque()
-fileconfig = namedtuple('fileconfig','path legend ratiolegend skipmarker, skipratiomarker, skipratio divisor binning')
+fileconfig = namedtuple('fileconfig','path legend ratiolegend skipmarker skipratiomarker skipratio divisor binning')
 
 with open(sys.argv[1],'r') as f:    #path to file with config of plot
     for li in f:
@@ -335,6 +433,7 @@ for idx,inputconf in enumerate(inputdeque):
                 #Store TH1 for ratio calculation
                 #Use inputconf for storing and replace path by TGraph
                 histolist.append(inputconf._replace(path=objectlist[jdx],))
+                graphlist.append(inputconf._replace(path=ROOT.TGraphAsymmErrors(objectlist[jdx]),))
                 #histolist.append((objectlist[jdx],)+infile[1:])
             #    TGraph (TH constructor)
             #    histolist.append(objectlist[jdx],infile[1:])
@@ -351,6 +450,8 @@ print ("%s \n"%(histolist))
 print "Graph list:"
 print ("%s \n"%(graphlist))
 
+DivPos = 0
+DivPos2 = 0
 Divisor = 0
 for idx,inputdata in enumerate(graphlist):
     graph = inputdata.path
@@ -361,6 +462,7 @@ for idx,inputdata in enumerate(graphlist):
     print bins
     if inputdata.divisor:
         print ("Divisor: %s"%(graph))
+        DivPos = idx
         Divisor+=1
     #for i in range(0,bins):
     #    print i
@@ -375,6 +477,13 @@ if  config.ratio or config.plusratio:
     elif Divisor < 1:
         sys.exit("Cannot calculate ratio, because %s divisor are defined. Expecting 1."%(Divisor))
         
+for idx,inputdata in enumerate(histolist):
+    graph = inputdata.path
+    print graph
+
+    if inputdata.divisor:
+        print ("Divisor: %s"%(graph))
+        DivPos2 = idx
 
 ########## ROOT config
 
@@ -459,7 +568,7 @@ if config.label:
 for idx,graphdata in enumerate(graphlist):
     graphdata.path.SetMarkerColor(markertable.get(idx)[0])
     graphdata.path.SetLineColor(markertable.get(idx)[0])
-    graphdata.path.SetLineWidth(2) #May need improvement with config.markersize, but only accepts int
+    graphdata.path.SetLineWidth(int(1*config.markersize)) #May need improvement with config.markersize, but only accepts int
     graphdata.path.SetMarkerStyle(markertable.get(idx)[1])
     graphdata.path.SetMarkerSize(markertable.get(idx)[2]*config.markersize)
     TLeg.AddEntry(graphdata.path, ("  %s"%(' '.join(graphdata.legend))))
@@ -474,9 +583,13 @@ MultiSpec.SetTitle("%s;%s;%s"%(' '.join(config.title),' '.join(config.xtitle),' 
 #MultiSpec.GetYaxis().SetTitle(config.ytitle)
     
 if config.xrange:
-    MultiSpec.GetHistogram().GetXaxis().SetRangeUser(config.xrange[0],config.xrange[1])
+    MultiSpec.GetXaxis().SetRangeUser(config.xrange[0],config.xrange[1])
 if config.yrange:
-    MultiSpec.GetHistogram().GetYaxis().SetRangeUser(config.yrange[0],config.yrange[1])
+    MultiSpec.GetYaxis().SetRangeUser(config.yrange[0],config.yrange[1])
+if config.morexlables:
+    MultiSpec.GetXaxis().SetMoreLogLabels(True)
+if config.moreylables:
+    MultiSpec.GetYaxis().SetMoreLogLabels(True)
 #if config.tgrapherrors:
 #    TH1Plot.GetXaxis().SetTitle(config.xtitle)
 #    TH1Plot.GetYaxis().SetTitle(config.ytitle)
@@ -528,8 +641,66 @@ if config.label:
 
 ROOT.gPad.Modified()
 ROOT.gPad.Update()
+if not config.xratiorange:
+    if not config.xrange:
+        config.xratiorange=[ MultiSpec.GetXaxis().GetXmin(),  MultiSpec.GetXaxis().GetXmax()]
+    else:
+        config.xratiorange=config.xrange
+
+print config.xrange
+print config.xratiorange
+
+########## Ratio graph
 
 
+if  config.ratio or config.plusratio:
+    TCratio2 = ROOT.TCanvas("TCratio2","",20,20,config.sizex,config.sizey)
+    MultiRatio = ROOT.TMultiGraph()
+
+    TRatioLeg2 = ROOT.TLegend(config.ratiolegendposition[0],config.ratiolegendposition[1],config.ratiolegendposition[0]+0.25,config.ratiolegendposition[1]-(len(filelist)-1)*(0.02*config.markersize))
+    TRatioLeg2.SetFillColor(0)
+    TRatioLeg2.SetMargin(0.075*config.markersize)
+    TRatioLeg2.SetBorderSize(0)
+    TRatioLeg2.SetTextFont(font2use)
+    TRatioLeg2.SetTextSize(fontsize)
+
+    TFconst1g = ROOT.TF1("TFconst1g","1.",config.xratiorange[0],config.xratiorange[1])
+    for idx,graphdata in enumerate(graphlist):
+        if graphdata.skipratio:
+            continue
+        if graphdata.divisor:
+            TFconst1g.SetLineColor(markertable.get(idx)[0])
+            TFconst1g.SetLineWidth(4)
+            TRatioLeg2.AddEntry(TFconst1g, ("  %s"%(' '.join(graphdata.legend))),"l")
+            continue
+        #ratiocalc
+        if graphdata.skipratiomarker:
+            TRatioLeg2.AddEntry("", ("  %s"%(' '.join(graphdata.legend))),"")
+        else:
+            TRatioLeg2.AddEntry(graphdata.path, ("  %s"%(' '.join(graphdata.legend))),"p")
+
+        #MultiRatio.Add(CalcRatio(graphdata.path,graphlist[DivPos].path))
+        CalcRatio(graphdata.path,graphlist[DivPos].path)
+
+    MultiRatio.Draw("AP")
+
+
+    MultiRatio.GetXaxis().SetTitle("%s"%(' '.join(config.xtitle)))
+    
+    if config.xratiorange:
+        MultiRatio.GetXaxis().SetRangeUser(config.xratiorange[0],config.xratiorange[1])
+    if config.yratiorange:
+        MultiRatio.GetYaxis().SetRangeUser(config.yratiorange[0],config.yratiorange[1])
+    
+    TFconst1g.Draw("same")
+    if config.ratiolegend:
+        TRatioLeg2.Draw("")
+
+    ROOT.gPad.Modified()
+    ROOT.gPad.Update()
+
+        
+    
 
 ########## Ratio histogram
 
@@ -543,32 +714,32 @@ if  config.ratio or config.plusratio:
     TRatioLeg.SetTextFont(font2use)
     TRatioLeg.SetTextSize(fontsize)
 
-    TFconst1 = ROOT.TF1("TFconst1","1.",BinRange[0],BinRange[1])
+    TFconst1 = ROOT.TF1("TFconst1","1.",config.xratiorange[0],config.xratiorange[1])
     
     
     
-    for i in range(0,len(FillValues)):
-        print i
-        THDiv=TH1Plot[i].Clone()
+    for idx,ihist in enumerate(histolist):
+        print idx
+        THDiv=ihist.path.Clone()
         THDiv.Sumw2
-        if skipratio[i]:
+        if ihist.skipratio:
             print "skip ratio for "
             continue
-        if i == ratiobase:
-            TFconst1.SetLineColor(markertable.get(i)[0])
+        if ihist.divisor:
+            TFconst1.SetLineColor(markertable.get(idx)[0])
             TFconst1.SetLineWidth(4)
-            TRatioLeg.AddEntry(TFconst1, ("  %s"%(' '.join(ratiolegend[i]))),"l")
+            TRatioLeg.AddEntry(TFconst1, ("  %s"%(' '.join(ihist.legend))),"l")
             print "draw const for "
             continue
         if config.ratiobinomialerr:
-            THDiv.Divide(TH1Plot[i],TH1Plot[ratiobase],1.,1.,"B")
+            THDiv.Divide(ihist.path,histolist[DivPos2].path,1.,1.,"B")
             print "Bionmial errors used"
         else:
-            THDiv.Divide(TH1Plot[i],TH1Plot[ratiobase])
-        if ratioskipmarker[i]:
-            TRatioLeg.AddEntry("", ("  %s"%(' '.join(ratiolegend[i]))),"")
+            THDiv.Divide(ihist.path,histolist[DivPos2].path)
+        if ihist.skipratiomarker:
+            TRatioLeg.AddEntry("", ("  %s"%(' '.join(ihist.legend))),"")
         else:
-            TRatioLeg.AddEntry(TH1Plot[i], ("  %s"%(' '.join(ratiolegend[i]))),"p")
+            TRatioLeg.AddEntry(ihist.path, ("  %s"%(' '.join(ihist.legend))),"p")
         THSRatio.Add(THDiv)
     
     
@@ -636,5 +807,5 @@ if  config.ratio or config.plusratio:
 
         
     
-#SavePlots()
+SavePlots()
 

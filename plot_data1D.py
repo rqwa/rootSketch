@@ -306,18 +306,10 @@ parser.add_argument("-rlp", "--ratiolegendposition", nargs =2, default=[0.5,0.8]
 parser.add_argument("-xrr", "--xratiorange", nargs=2, type=float)
 parser.add_argument("-yrr", "--yratiorange", nargs=2, type=float)
 parser.add_argument("-of", "--outputformat", nargs='+', default=["pdf","png"])
+parser.add_argument("-sp", "--setpalette", default=77, type=int, choices=range(51,113))
+parser.add_argument("-up", "--usepalette", action="store_true")
 
 #parser.add_argument("-", "--")
-
-filelist = ()
-filelegend = ()
-ratiolegend = ()
-skipmarker = ()
-ratioskipmarker = ()
-skipratio = ()
-
-ratiobase = -1
-counter = 0
 
 config_line = ''
 
@@ -332,13 +324,11 @@ with open(sys.argv[1],'r') as f:    #path to file with config of plot
             lineargs = fileparser.parse_args(li.split())
 #Alternative storing scheme to store ratio divisor always at first object
             #if lineargs.ratiodivisor:
-            #    ratiobase = counter
             #    #Put the ratiodivisor always on the first place
             #    inputdeque.appendleft(fileconfig(lineargs.filename, lineargs.legend, lineargs.ratiolegend, lineargs.nomarker, lineargs.rationomarker, lineargs.skipratio, lineargs.ratiodivisor, lineargs.filebinning)) 
             #else:
             #    inputdeque.append(fileconfig(lineargs.filename, lineargs.legend, lineargs.ratiolegend, lineargs.nomarker, lineargs.rationomarker, lineargs.skipratio, lineargs.ratiodivisor, lineargs.filebinning)) 
             inputdeque.append(fileconfig(lineargs.filename, lineargs.legend, lineargs.ratiolegend, lineargs.nomarker, lineargs.rationomarker, lineargs.skipratio, lineargs.ratiodivisor, lineargs.filebinning)) 
-            counter += 1
             
 
         else:
@@ -359,9 +349,6 @@ config = parser.parse_args(config_line.split())
 #for idx,inputconf in enumerate(inputdeque):
 #    print idx
 #    print inputconf
-
-
-
 
 
 ########## Process input
@@ -470,6 +457,7 @@ ROOT.gStyle.SetTitleFont(font2use,"x")
 ROOT.gStyle.SetTitleFont(font2use,"y")
 ROOT.gStyle.SetTitleYSize(fontsize)
 ROOT.gStyle.SetTitleXSize(fontsize)
+ROOT.gStyle.SetPalette(config.setpalette)
 
 
 #Dictionary with combinations of marker, color and size
@@ -499,9 +487,9 @@ if config.ylog:
     ROOT.gPad.SetLogy()
 
 if config.legendtitle:
-    TLeg = ROOT.TLegend(config.legendposition[0],config.legendposition[1],config.legendposition[0]+0.05,config.legendposition[1]-(len(filelist)+1)*(0.02*config.markersize))
+    TLeg = ROOT.TLegend(config.legendposition[0],config.legendposition[1],config.legendposition[0]+0.05,config.legendposition[1]-(len(inputdeque)+1)*(0.02*config.markersize))
 else:
-    TLeg = ROOT.TLegend(config.legendposition[0],config.legendposition[1],config.legendposition[0]+0.05,config.legendposition[1]-len(filelist)*(0.02*config.markersize))
+    TLeg = ROOT.TLegend(config.legendposition[0],config.legendposition[1],config.legendposition[0]+0.05,config.legendposition[1]-len(inputdeque)*(0.02*config.markersize))
 TLeg.SetFillColor(0)
 TLeg.SetMargin(0.075*config.markersize)
 TLeg.SetBorderSize(0)
@@ -530,8 +518,10 @@ for idx,graphdata in enumerate(graphlist):
     if graphdata.skipmarker:
         TLeg.AddEntry("", ("  %s"%(' '.join(graphdata.legend))),"")
     MultiSpec.Add(graphdata.path)
-
-MultiSpec.Draw("AP")
+if config.usepalette:
+    MultiSpec.Draw("AP pmc plc")
+else:
+    MultiSpec.Draw("AP")
 
 MultiSpec.SetTitle("%s;%s;%s"%(' '.join(config.title),' '.join(config.xtitle),' '.join(config.ytitle)))
     
@@ -567,7 +557,7 @@ if  config.ratio or config.plusratio:
     TCratio = ROOT.TCanvas("TCratio","",20,20,config.sizex,config.sizey)
     MultiRatio = ROOT.TMultiGraph()
 
-    TRatioLeg = ROOT.TLegend(config.ratiolegendposition[0],config.ratiolegendposition[1],config.ratiolegendposition[0]+0.25,config.ratiolegendposition[1]-(len(filelist)-1)*(0.02*config.markersize))
+    TRatioLeg = ROOT.TLegend(config.ratiolegendposition[0],config.ratiolegendposition[1],config.ratiolegendposition[0]+0.25,config.ratiolegendposition[1]-(len(inputdeque)-1)*(0.02*config.markersize))
     TRatioLeg.SetFillColor(0)
     TRatioLeg.SetMargin(0.075*config.markersize)
     TRatioLeg.SetBorderSize(0)
@@ -590,7 +580,10 @@ if  config.ratio or config.plusratio:
 
         CalcRatio(graphdata.path,graphlist[DivPos].path)
 
-    MultiRatio.Draw("AP")
+    if config.usepalette:
+        MultiRatio.Draw("AP pmc plc")
+    else:
+        MultiRatio.Draw("AP")
 
 
     MultiRatio.GetXaxis().SetTitle("%s"%(' '.join(config.xtitle)))

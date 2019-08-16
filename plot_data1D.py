@@ -2,8 +2,8 @@
 
 #Script to plot data, the data and the related config is loaded by a file passed to the script.
 #The options for the config are read via argparse in the following:
-#All options not specific for input file have to be in the first line of the file
-#All files to plot, with their corresponding options have to written from the second line on, one file per line only
+#All options not specific for input files, can be written in as many lines as wished
+#All files to plot, with their corresponding options have to be written into one line, one file per line only
 #Call with <python (-i) plot_data1D.py #CONFIG_FILE (-b)
 #The option -i stops python from closing automatically instead it goes to prompt
 #The option -b let python run in background
@@ -268,7 +268,7 @@ parser.add_argument("-st", "--stack", action="store_true")
 parser.add_argument("-mxl", "--morexlables", action="store_true") #Only works with log axis
 parser.add_argument("-myl", "--moreylables", action="store_true") #Only works with log axis
 parser.add_argument("-pr", "--plusratio", action="store_true")
-parser.add_argument("-ppr", "--pluspadaratio", default=0.3, type=float)
+parser.add_argument("-ppr", "--pluspadratio", default=0.3, type=float)
 parser.add_argument("-r", "--ratio", action="store_true")
 parser.add_argument("-rbe", "--ratiobinomialerr", action="store_true")
 parser.add_argument("-rl", "--ratiolegend", action="store_true")
@@ -276,7 +276,7 @@ parser.add_argument("-rlp", "--ratiolegendposition", nargs =2, default=[0.5,0.8]
 parser.add_argument("-xrr", "--xratiorange", nargs=2, type=float)
 parser.add_argument("-yrr", "--yratiorange", nargs=2, type=float)
 parser.add_argument("-of", "--outputformat", nargs='+', default=["pdf","png"])
-parser.add_argument("-sp", "--setpalette", default=77, type=int, choices=range(51,113))
+parser.add_argument("-sp", "--setpalette", default=77, type=int, choices=range(51,114))
 parser.add_argument("-up", "--usepalette", action="store_true")
 parser.add_argument("-ct", "--colortable", type=int, default=2)
 parser.add_argument("-mt", "--markertable", type=int, default=1)
@@ -506,8 +506,12 @@ TLeg.Draw("")
 if config.label:
     Label.Draw("")
 
+ROOT.gPad.RedrawAxis()
 ROOT.gPad.Modified()
 ROOT.gPad.Update()
+
+
+
 if not config.xratiorange:
     if not config.xrange:
         config.xratiorange=[ MultiSpec.GetXaxis().GetXmin(),  MultiSpec.GetXaxis().GetXmax()]
@@ -555,11 +559,11 @@ if  config.ratio or config.plusratio:
         ratiograph.SetMarkerSize(markertable[idx%LenMarker][1]*config.markersize)
         MultiRatio.Add(ratiograph)
 
+
     if config.usepalette:
         MultiRatio.Draw("AP pmc plc")
     else:
         MultiRatio.Draw("AP")
-
 
     MultiRatio.GetXaxis().SetTitle("%s"%(' '.join(config.xtitle)))
     MultiRatio.SetTitle("%s_ratio"%(' '.join(config.xtitle)))
@@ -570,52 +574,57 @@ if  config.ratio or config.plusratio:
         MultiRatio.GetYaxis().SetRangeUser(config.yratiorange[0],config.yratiorange[1])
     
     TFconst1.Draw("same")
-    if config.ratiolegend:
-        TRatioLeg.Draw("")
 
+    if config.ratiolegend:
+        TRatioLeg.Draw("same")
+
+    ROOT.gPad.RedrawAxis()
     ROOT.gPad.Modified()
     ROOT.gPad.Update()
 
 ########## Plot spectrum + ratio
 
-#    if config.plusratio:
-#        TCplus = ROOT.TCanvas("TCplus","",20,20,config.sizex,config.sizey)
-#        TCplus.Divide(1,2)
-#        TCplus.cd(1).SetPad(0., config.pluspadratio, 1., 1.);  # top pad
-#        TCplus.cd(1).SetBottomMargin(0.001);
-#        TCplus.cd(2).SetPad(0., 0., 1., config.pluspadratio);  # bottom pad
-#        TCplus.cd(2).SetTopMargin(0);
-#        TCplus.cd(2).SetBottomMargin(config.bottommargin/config.pluspadratio); # for x-axis label
+    if config.plusratio:
+        TCplus = ROOT.TCanvas("TCplus","",20,20,config.sizex,config.sizey)
+        TCplus.Divide(1,2)
+        TCplus.cd(1).SetPad(0., config.pluspadratio, 1., 1.);  # top pad
+        TCplus.cd(1).SetBottomMargin(0.001);
+        TCplus.cd(2).SetPad(0., 0., 1., config.pluspadratio);  # bottom pad
+        TCplus.cd(2).SetTopMargin(0);
+        TCplus.cd(2).SetBottomMargin(config.bottommargin/config.pluspadratio); # for x-axis label
+        
+        TLegPlus = TLeg.Clone("TLegPlus")
+        if config.legendtitle:  #Extend legend size due to shrinked canvas. NEED TO RESET Y1 instead of Y2, because TBox orders Y1 and Y2 by size and the legend position is defined by the top left corner (Y1 > Y2).
+            TLegPlus.SetY1(config.legendposition[1]-((len(inputdeque)+1)*(0.02*config.markersize))/(1-config.pluspadratio))
+            #TLegPlus.SetY2(config.legendposition[1]-((len(filelist)+1)*(0.02*config.markersize)))
+        else:
+            TLegPlus.SetY1(config.legendposition[1]-(len(inputdeque)*(0.02*config.markersize))/(1-config.pluspadratio))
+            #TLegPlus.SetY2(config.legendposition[1]-(len(filelist)*(0.02*config.markersize)))
+        
+    
+        TCplus.cd(1)
+        if config.xlog:
+            ROOT.gPad.SetLogx()
+        if config.ylog:
+            ROOT.gPad.SetLogy()
+        if config.usepalette:
+            MultiSpec.Draw("AP pmc plc")
+        else:
+            MultiSpec.Draw("AP")
+        
+        TLegPlus.Draw("")
+        if config.label:
+            Label.Draw("")
 #        
-#        TLegPlus = TLeg.Clone("TLegPlus")
-#        if config.legendtitle:  #Extend legend size due to shrinked canvas. NEED TO RESET Y1 instead of Y2, because TBox orders Y1 and Y2 by size and the legend position is defined by the top left corner (Y1 > Y2).
-#            TLegPlus.SetY1(config.legendposition[1]-((len(filelist)+1)*(0.02*config.markersize))/(1-config.pluspadratio))
-#            #TLegPlus.SetY2(config.legendposition[1]-((len(filelist)+1)*(0.02*config.markersize)))
-#        else:
-#            TLegPlus.SetY1(config.legendposition[1]-(len(filelist)*(0.02*config.markersize))/(1-config.pluspadratio))
-#            #TLegPlus.SetY2(config.legendposition[1]-(len(filelist)*(0.02*config.markersize)))
-#        
-#    
-#        TCplus.cd(1)
-#        if config.xlog:
-#            ROOT.gPad.SetLogx()
-#        if config.ylog:
-#            ROOT.gPad.SetLogy()
-#        THSt1.Draw("nostack")
-#        #TLegPlus.SetY2(0.0)
-#        TLegPlus.Draw("")
-#        if config.label:
-#            Label.Draw("")
-#        
-#        TCplus.cd(2)
-#        THSRatio.GetXaxis().SetTitleOffset(config.titleoffsetx/config.pluspadratio)
-#        THSRatio.Draw("nostack")
-#        TFconst1.Draw("same")
-#        THSRatio.Draw("nostacksame")
-#        #TRatioLeg.Draw("")
-#        #if config.ratio:
-#        #    THSRatio.DrawCopy("nostacksame")
-#        #if config.ratiolegend:
+        TCplus.cd(2)
+        MultiRatio.GetXaxis().SetTitleOffset(config.titleoffsetx/config.pluspadratio)
+        if config.usepalette:
+            MultiRatio.Draw("AP pmc plc")
+        else:
+            MultiRatio.Draw("AP")
+        TFconst1.Draw("same")
+        
+        ROOT.gPad.RedrawAxis()
 
         
     

@@ -17,6 +17,8 @@ from collections import deque #List with fast operations on both sides (right an
 from math import sqrt
 import numpy as np
 import argparse 
+import designtables as design
+import linecache
 
 def CalcRatio( graph1, graph2 ):
     print ("Ratio calculation")
@@ -82,44 +84,9 @@ def CalcRatio( graph1, graph2 ):
         RatioGraph.SetPoint(i,x1,y_ratio)
         RatioGraph.SetPointError(i,x1low,x1up,e_low,e_up)
         
-    MultiRatio.Add(RatioGraph)
+    #MultiRatio.Add(RatioGraph)
 
-    return
-
-
-            
-
-
-  #        Double_t b1 = h1->RetrieveBinContent(i);
-  #        Double_t b2 = h2->RetrieveBinContent(i);
-  #          if (b2 == 0) { fSumw2.fArray[i] = 0; continue; }
-  #        Double_t b1sq = b1 * b1; Double_t b2sq = b2 * b2; #Content
-  #        Double_t c1sq = c1 * c1; Double_t c2sq = c2 * c2; #scaling
-  #        Double_t e1sq = h1->GetBinErrorSqUnchecked(i); Error
-  #        Double_t e2sq = h2->GetBinErrorSqUnchecked(i); Error
-  #        if (binomial) {
-  #           if (b1 != b2) {
-  #              // in the case of binomial statistics c1 and c2 must be 1 otherwise it does not make sense
-  #              // c1 and c2 are ignored
-  #              //fSumw2.fArray[bin] = TMath::Abs(w*(1-w)/(c2*b2));//this is the formula in Hbook/Hoper1
-  #              //fSumw2.fArray[bin] = TMath::Abs(w*(1-w)/b2);     // old formula from G. Flucke
-  #              // formula which works also for weighted histogram (see http://root-forum.cern.ch/viewtopic.php?t=3753 )
-  #              fSumw2.fArray[i] = TMath::Abs( ( (1. - 2.* b1 / b2) * e1sq  + b1sq * e2sq / b2sq ) / b2sq );
-  #           } else {
-  #              //in case b1=b2 error is zero
-  #              //use  TGraphAsymmErrors::BayesDivide for getting the asymmetric error not equal to zero
-  #              fSumw2.fArray[i] = 0;
-  #           }
-  #        } else {
-  #           fSumw2.fArray[i] = c1sq * c2sq * (e1sq * b2sq + e2sq * b1sq) / (c2sq * c2sq * b2sq * b2sq);
-  #           fSumw2.fArray[i] = (e1sq * b2sq + e2sq * b1sq) / ( b2sq * b2sq);
-  #        }
-  #}
-
-
-    #    print ("y error: %s \t %s"%(graph.GetErrorYlow(i),graph.GetErrorYhigh(i)))
-
-    return
+    return RatioGraph
 
 def ReadBinning( bincenter, binwidth ):
 
@@ -186,24 +153,26 @@ def ReadUnumpy( inputfile, columns ):
 
     return 
 
-def ReadData( datafile ):
+def ReadData( datafile , skiprows ):
     # Count number of columns and decide what data format 
     # 1 column & +/- -> unumpy
     # 2-4 columns -> TGraphErrors
     # 6 columns -> TGraphAsymmErrors
     print datafile
-    with file(datafile) as f:
-        line = f.readline()
-        columns = len(line.split())
-        print ("%s column(s)"%(columns))
-        if "+/-" in line:
-            ReadUnumpy( datafile, columns )
-        elif columns >= 2 and columns <=4:
-            FillTge( datafile )
-        elif columns == 6:
-            FillTgae( datafile )
-        else:
-            print("Cannot identify input file format. Not Importing %s."%(datafile))
+    #Skip rows for column identification, Unumpy should not have leading line by default, and filling of TGE and TGAE seem to skip lines which do not start with a number
+    #TODO: Check if the assumptions are true
+    line = linecache.getline(datafile,skiprows+1)
+    columns = len(line.split())
+    print ("%s column(s)"%(columns))
+    if "+/-" in line:
+        ReadUnumpy( datafile, columns )
+    elif columns >= 2 and columns <=4:
+        FillTge( datafile )
+    elif columns == 6:
+        FillTgae( datafile )
+    else:
+        print("Cannot identify input file format. Not Importing %s."%(datafile))
+    linecache.clearcache
 
     return
 
@@ -265,6 +234,7 @@ fileparser.add_argument("-rld", "--ratiolegend", default="", nargs='+')
 fileparser.add_argument("-rnm", "--rationomarker", action="store_true")
 fileparser.add_argument("-sr", "--skipratio", action="store_true")
 fileparser.add_argument("-fb", "--filebinning")
+fileparser.add_argument("-sro", "--skiprows", type=int, default=0)
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-ac", "--alternativecolors", action="store_true")
@@ -308,6 +278,8 @@ parser.add_argument("-yrr", "--yratiorange", nargs=2, type=float)
 parser.add_argument("-of", "--outputformat", nargs='+', default=["pdf","png"])
 parser.add_argument("-sp", "--setpalette", default=77, type=int, choices=range(51,113))
 parser.add_argument("-up", "--usepalette", action="store_true")
+parser.add_argument("-ct", "--colortable", type=int, default=2)
+parser.add_argument("-mt", "--markertable", type=int, default=1)
 
 #parser.add_argument("-", "--")
 
@@ -316,7 +288,7 @@ config_line = ''
 filecheck = ['-f ','--filename ']
 
 inputdeque = deque()
-fileconfig = namedtuple('fileconfig','path legend ratiolegend skipmarker skipratiomarker skipratio divisor binning')
+fileconfig = namedtuple('fileconfig','path legend ratiolegend skipmarker skipratiomarker skipratio divisor binning skiprows')
 
 with open(sys.argv[1],'r') as f:    #path to file with config of plot
     for li in f:
@@ -328,7 +300,7 @@ with open(sys.argv[1],'r') as f:    #path to file with config of plot
             #    inputdeque.appendleft(fileconfig(lineargs.filename, lineargs.legend, lineargs.ratiolegend, lineargs.nomarker, lineargs.rationomarker, lineargs.skipratio, lineargs.ratiodivisor, lineargs.filebinning)) 
             #else:
             #    inputdeque.append(fileconfig(lineargs.filename, lineargs.legend, lineargs.ratiolegend, lineargs.nomarker, lineargs.rationomarker, lineargs.skipratio, lineargs.ratiodivisor, lineargs.filebinning)) 
-            inputdeque.append(fileconfig(lineargs.filename, lineargs.legend, lineargs.ratiolegend, lineargs.nomarker, lineargs.rationomarker, lineargs.skipratio, lineargs.ratiodivisor, lineargs.filebinning)) 
+            inputdeque.append(fileconfig(lineargs.filename, lineargs.legend, lineargs.ratiolegend, lineargs.nomarker, lineargs.rationomarker, lineargs.skipratio, lineargs.ratiodivisor, lineargs.filebinning, lineargs.skiprows)) 
             
 
         else:
@@ -374,7 +346,7 @@ for idx,inputconf in enumerate(inputdeque):
                 ReadRootFile(listin)
             else:
                 print ("Read values from text based file %s"%(listin))
-                ReadData( listin )   
+                ReadData( listin, inputconf.skiprows )   
         else:
             try:
                 if objectlist[jdx-1].InheritsFrom("TDirectoryFile"):
@@ -459,17 +431,12 @@ ROOT.gStyle.SetTitleYSize(fontsize)
 ROOT.gStyle.SetTitleXSize(fontsize)
 ROOT.gStyle.SetPalette(config.setpalette)
 
-
-#Dictionary with combinations of marker, color and size
-if config.alternativecolors:
-    markertable = {0:[ROOT.kBlue+2,33,1.7],1:[ROOT.kOrange+10,8,1.0],2:[ROOT.kTeal-6,21,1.0],3:[ROOT.kMagenta+3,34,1.4],4:[ROOT.kBlue+2,22,1.2],5:[ROOT.kPink,23,1.2],6:[ROOT.kOrange+10,29,1.6],7:[ROOT.kTeal+3,21,1.0]}
-else:
-    markertable = {0:[ROOT.kAzure+2,33,1.7],1:[ROOT.kSpring-8,8,1.0],2:[ROOT.kRed+1,21,1.0],3:[ROOT.kOrange+1,34,1.4],4:[ROOT.kAzure+2,22,1.2],5:[ROOT.kSpring-8,23,1.2],6:[ROOT.kRed+1,29,1.6],7:[ROOT.kOrange+1,21,1.0]}
+markertable = design.LoadMarker(config.markertable)
+LenMarker = len(markertable)
 
 
-#print config
-#print filelist
-
+colortable = design.LoadColor(config.colortable)
+LenColor = len(colortable)
 
 ########## General histogram
 TCspectrum = ROOT.TCanvas("TCspectrum","",20,20,config.sizex,config.sizey)
@@ -509,11 +476,11 @@ if config.label:
 
 
 for idx,graphdata in enumerate(graphlist):
-    graphdata.path.SetMarkerColor(markertable.get(idx)[0])
-    graphdata.path.SetLineColor(markertable.get(idx)[0])
+    graphdata.path.SetMarkerColor(colortable[idx%LenColor])
+    graphdata.path.SetLineColor(colortable[idx%LenColor])
     graphdata.path.SetLineWidth(int(1*config.markersize)) #May need improvement with config.markersize, but only accepts int
-    graphdata.path.SetMarkerStyle(markertable.get(idx)[1])
-    graphdata.path.SetMarkerSize(markertable.get(idx)[2]*config.markersize)
+    graphdata.path.SetMarkerStyle(markertable[idx%LenMarker][0])
+    graphdata.path.SetMarkerSize(markertable[idx%LenMarker][1]*config.markersize)
     TLeg.AddEntry(graphdata.path, ("  %s"%(' '.join(graphdata.legend))))
     if graphdata.skipmarker:
         TLeg.AddEntry("", ("  %s"%(' '.join(graphdata.legend))),"")
@@ -568,17 +535,25 @@ if  config.ratio or config.plusratio:
     for idx,graphdata in enumerate(graphlist):
         if graphdata.skipratio:
             continue
+        if not graphdata.ratiolegend:
+            graphdata._replace(ratiolegend= graphdata.legend)
         if graphdata.divisor:
-            TFconst1.SetLineColor(markertable.get(idx)[0])
+            TFconst1.SetLineColor(colortable[idx%LenColor])
             TFconst1.SetLineWidth(4)
-            TRatioLeg.AddEntry(TFconst1, ("  %s"%(' '.join(graphdata.legend))),"l")
+            TRatioLeg.AddEntry(TFconst1, ("  %s"%(' '.join(graphdata.ratiolegend))),"l")
             continue
         if graphdata.skipratiomarker:
-            TRatioLeg.AddEntry("", ("  %s"%(' '.join(graphdata.legend))),"")
+            TRatioLeg.AddEntry("", ("  %s"%(' '.join(graphdata.ratiolegend))),"")
         else:
-            TRatioLeg.AddEntry(graphdata.path, ("  %s"%(' '.join(graphdata.legend))),"p")
+            TRatioLeg.AddEntry(graphdata.path, ("  %s"%(' '.join(graphdata.ratiolegend))),"p")
 
-        CalcRatio(graphdata.path,graphlist[DivPos].path)
+        ratiograph = CalcRatio(graphdata.path,graphlist[DivPos].path)
+        ratiograph.SetMarkerColor(colortable[idx%LenColor])
+        ratiograph.SetLineColor(colortable[idx%LenColor])
+        ratiograph.SetLineWidth(int(1*config.markersize)) #May need improvement with config.markersize, but only accepts int
+        ratiograph.SetMarkerStyle(markertable[idx%LenMarker][0])
+        ratiograph.SetMarkerSize(markertable[idx%LenMarker][1]*config.markersize)
+        MultiRatio.Add(ratiograph)
 
     if config.usepalette:
         MultiRatio.Draw("AP pmc plc")
@@ -587,6 +562,7 @@ if  config.ratio or config.plusratio:
 
 
     MultiRatio.GetXaxis().SetTitle("%s"%(' '.join(config.xtitle)))
+    MultiRatio.SetTitle("%s_ratio"%(' '.join(config.xtitle)))
     
     if config.xratiorange:
         MultiRatio.GetXaxis().SetRangeUser(config.xratiorange[0],config.xratiorange[1])

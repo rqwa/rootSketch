@@ -114,15 +114,15 @@ def FillTge( inputfile ):
     print ("TGE")
     InputTge = ROOT.TGraphErrors(inputfile)
     InputTge.SetName("%s"%(inputfile))
-    objectlist.append(InputTge)
-    return
+    #objectlist.append(InputTge)
+    return InputTge
 
 def FillTgae( inputfile ):
     print("TGAE")
     InputTgae = ROOT.TGraphErrors(inputfile)
     InputTgae.SetName("%s"%(inputfile))
-    objectlist.append(InputTgae)
-    return
+    #objectlist.append(InputTgae)
+    return InputTgae
 
 def ReadHepData( inputfile ):
     #Should work with hep root files and ReadRootFile
@@ -149,9 +149,9 @@ def ReadUnumpy( inputfile, columns ):
 
     UnumpyTge = ROOT.TGraphErrors(len(BinCenter),np.array(BinCenter,'d'),unumpy.nominal_values(Values),np.array(BinXerror,'d'),unumpy.std_devs(Values))
     UnumpyTge.SetName("%s"%inputfile)
-    objectlist.append(UnumpyTge)
+    #objectlist.append(UnumpyTge)
 
-    return 
+    return UnumpyTge
 
 def ReadData( datafile , skiprows ):
     # Count number of columns and decide what data format 
@@ -165,22 +165,22 @@ def ReadData( datafile , skiprows ):
     columns = len(line.split())
     print ("%s column(s)"%(columns))
     if "+/-" in line:
-        ReadUnumpy( datafile, columns )
+        return (ReadUnumpy( datafile, columns ))
     elif columns >= 2 and columns <=4:
-        FillTge( datafile )
+        return (FillTge( datafile ))
     elif columns == 6:
-        FillTgae( datafile )
+        return (FillTgae( datafile ))
     else:
         print("Cannot identify input file format. Not Importing %s."%(datafile))
-    linecache.clearcache
 
-    return
+        return
 
 def ReadRootFile( filename ):
     print (filename)
     inputfile = ROOT.TFile.Open(filename)
     #inputfile.ls()
-    objectlist.append(inputfile)
+    #objectlist.append(inputfile)
+    return inputfile
 
 def GetFromTDirFile( objname, rootfile ):
     print (objname)
@@ -190,7 +190,8 @@ def GetFromTDirFile( objname, rootfile ):
         raise ValueError("Null pointer")
     else:
         #print (dirfile)
-        objectlist.append(dirfile)
+        #objectlist.append(dirfile)
+        return dirfile
 
 def GetFromTList( objname, rootlist ):
     print (objname)
@@ -200,14 +201,8 @@ def GetFromTList( objname, rootlist ):
         raise ValueError("Null pointer")
     else:
         #print (listfile)
-        objectlist.append(listfile)
-
-
-def PlotHisto():
-    print "Test PlotHisto"
-
-def PlotRatio():
-    print "Test PlotRatio"
+        #objectlist.append(listfile)
+        return listfile
 
 
 def SavePlots():
@@ -226,6 +221,7 @@ def SavePlots():
 
 fileparser = argparse.ArgumentParser()
 fileparser.add_argument("-f", "--filename", nargs='+')
+fileparser.add_argument("-bf", "--boxfilename", nargs='+') #Data points with errors drawn as boxes
 fileparser.add_argument("-ld", "--legend", default="", nargs='+')
 fileparser.add_argument("-nc", "--numbercolumns") #Define columns for unumpy import. No longer needed? Should be replaced by automatic column detection
 fileparser.add_argument("-nm", "--nomarker", action="store_true")
@@ -288,7 +284,7 @@ config_line = ''
 filecheck = ['-f ','--filename ']
 
 inputdeque = deque()
-fileconfig = namedtuple('fileconfig','path legend ratiolegend skipmarker skipratiomarker skipratio divisor binning skiprows')
+fileconfig = namedtuple('fileconfig','path boxpath legend ratiolegend skipmarker skipratiomarker skipratio divisor binning skiprows')
 
 with open(sys.argv[1],'r') as f:    #path to file with config of plot
     for li in f:
@@ -300,7 +296,7 @@ with open(sys.argv[1],'r') as f:    #path to file with config of plot
             #    inputdeque.appendleft(fileconfig(lineargs.filename, lineargs.legend, lineargs.ratiolegend, lineargs.nomarker, lineargs.rationomarker, lineargs.skipratio, lineargs.ratiodivisor, lineargs.filebinning)) 
             #else:
             #    inputdeque.append(fileconfig(lineargs.filename, lineargs.legend, lineargs.ratiolegend, lineargs.nomarker, lineargs.rationomarker, lineargs.skipratio, lineargs.ratiodivisor, lineargs.filebinning)) 
-            inputdeque.append(fileconfig(lineargs.filename, lineargs.legend, lineargs.ratiolegend, lineargs.nomarker, lineargs.rationomarker, lineargs.skipratio, lineargs.ratiodivisor, lineargs.filebinning, lineargs.skiprows)) 
+            inputdeque.append(fileconfig(lineargs.filename, lineargs.boxfilename, lineargs.legend, lineargs.ratiolegend, lineargs.nomarker, lineargs.rationomarker, lineargs.skipratio, lineargs.ratiodivisor, lineargs.filebinning, lineargs.skiprows)) 
             
 
         else:
@@ -328,52 +324,105 @@ config = parser.parse_args(config_line.split())
 print "START PROCESSING"
 
 graphlist = []
-ratiolist = []
-
 
 for idx,inputconf in enumerate(inputdeque):
-    #print (idx)
-    objectlist = []
-    print (inputconf)
-    listsize = len(inputconf.path)
-    print (listsize)
-    for jdx,listin in enumerate(inputconf.path): #Take element [0] as it represents the object name to be processed
-        print (jdx)
-        print (listin)
-        if jdx is 0: 
-            #open file and decide between root files and text based files
-            if listin.endswith(".root"):
-                ReadRootFile(listin)
-            else:
-                print ("Read values from text based file %s"%(listin))
-                ReadData( listin, inputconf.skiprows )   
-        else:
-            try:
-                if objectlist[jdx-1].InheritsFrom("TDirectoryFile"):
-                    print ("TDirectoryFile")
-                    GetFromTDirFile( listin, objectlist[jdx-1] )
-                elif objectlist[jdx-1].InheritsFrom("TList"):
-                    print ("TList")
-                    GetFromTList( listin, objectlist[jdx-1] )
+    boxgraph= None
+    returngraph = None
+    if inputconf.path:
+        #print (idx)
+        objectlist = []
+        print (inputconf)
+        listsize = len(inputconf.path)
+        print (listsize)
+        for jdx,listin in enumerate(inputconf.path): #Take element [0] as it represents the object name to be processed
+            print (jdx)
+            print (listin)
+            if jdx is 0: 
+                #open file and decide between root files and text based files
+                if listin.endswith(".root"):
+                    objectlist.append(ReadRootFile(listin))
                 else:
-                    print ("Unsupported class")
+                    print ("Read values from text based file %s"%(listin))
+                    objectlist.append(ReadData( listin, inputconf.skiprows ))
+            else:
+                try:
+                    if objectlist[jdx-1].InheritsFrom("TDirectoryFile"):
+                        print ("TDirectoryFile")
+                        objectlist.append(GetFromTDirFile( listin, objectlist[jdx-1] ))
+                    elif objectlist[jdx-1].InheritsFrom("TList"):
+                        print ("TList")
+                        objectlist.append(GetFromTList( listin, objectlist[jdx-1] ))
+                    else:
+                        print ("Unsupported class")
+                        break
+                except Exception as e:
+                    print (e)
+                    print ("Cannot not process: \'%s\', no inheritance from TObject "%(listin))
                     break
-            except Exception as e:
-                print (e)
-                print ("Cannot not process: \'%s\', no inheritance from TObject "%(listin))
-                break
-    print ("%s \n"%(objectlist))
-    try:
-        if objectlist[jdx].InheritsFrom("TH1"):
-                #Use inputconf for storing and replace path by TGraph
-            graphlist.append(inputconf._replace(path=ROOT.TGraphAsymmErrors(objectlist[jdx]),))
-        elif objectlist[jdx].InheritsFrom("TGraph"):
-            print ("Storing TGraph...")
-            graphlist.append(inputconf._replace(path=objectlist[jdx],))
-    except Exception as e:
-        #print (e)
-        print ("Cannot not process: \'%s\', no inheritance from TH1 or TGraph. No plotting.  "%(listin))
-        #break
+        print ("%s \n"%(objectlist))
+        try:
+            if objectlist[jdx].InheritsFrom("TH1"):
+                print ("Storing TH1")
+                    #Use inputconf for storing and replace path by TGraph
+                #graphlist.append(inputconf._replace(path=ROOT.TGraphAsymmErrors(objectlist[jdx]),))
+                returngraph=ROOT.TGraphAsymmErrors(objectlist[jdx])
+            elif objectlist[jdx].InheritsFrom("TGraph"):
+                print ("Storing TGraph")
+                #graphlist.append(inputconf._replace(path=objectlist[jdx],))
+                returngraph=objectlist[jdx]
+        #TODO: Add possibilty to add function (TF1)
+        except Exception as e:
+            #print (e)
+            print ("Cannot not process: \'%s\', no inheritance from TH1 or TGraph. No plotting.  "%(listin))
+            #break
+    if inputconf.boxpath:
+        #print (idx)
+        boxobjectlist = []
+        print (inputconf)
+        listsize = len(inputconf.boxpath)
+        print (listsize)
+        for jdx,listin in enumerate(inputconf.boxpath): #Take element [0] as it represents the object name to be processed
+            print (jdx)
+            print (listin)
+            if jdx is 0: 
+                #open file and decide between root files and text based files
+                if listin.endswith(".root"):
+                    boxobjectlist.append(ReadRootFile(listin))
+                else:
+                    print ("Read values from text based file %s"%(listin))
+                    boxobjectlist.append(ReadData( listin, inputconf.skiprows ))
+            else:
+                try:
+                    if boxobjectlist[jdx-1].InheritsFrom("TDirectoryFile"):
+                        print ("TDirectoryFile")
+                        boxobjectlist.append(GetFromTDirFile( listin, boxobjectlist[jdx-1] ))
+                    elif boxobjectlist[jdx-1].InheritsFrom("TList"):
+                        print ("TList")
+                        boxobjectlist.append(GetFromTList( listin, boxobjectlist[jdx-1] ))
+                    else:
+                        print ("Unsupported class")
+                        break
+                except Exception as e:
+                    print (e)
+                    print ("Cannot not process: \'%s\', no inheritance from TObject "%(listin))
+                    break
+        print ("%s \n"%(boxobjectlist))
+        try:
+            if boxobjectlist[jdx].InheritsFrom("TH1"):
+                print ("Storing TH1")
+                    #Use inputconf for storing and replace path by TGraph
+                #graphlist.append(inputconf._replace(boxpath=ROOT.TGraphAsymmErrors(boxobjectlist[jdx]),))
+                boxgraph=ROOT.TGraphAsymmErrors(boxobjectlist[jdx])
+            elif boxobjectlist[jdx].InheritsFrom("TGraph"):
+                print ("Storing TGraph")
+                #graphlist.append(inputconf._replace(boxpath=boxobjectlist[jdx],))
+                boxgraph=boxobjectlist[jdx]
+        #TODO: Add possibilty to add function (TF1)
+        except Exception as e:
+            #print (e)
+            print ("Cannot not process: \'%s\', no inheritance from TH1 or TGraph. No plotting.  "%(listin))
+            #break
+    graphlist.append(inputconf._replace(path=returngraph,boxpath=boxgraph,))
 
 print "Graph list:"
 print ("%s \n"%(graphlist))
@@ -535,16 +584,20 @@ if  config.ratio or config.plusratio:
     TRatioLeg.SetTextFont(font2use)
     TRatioLeg.SetTextSize(fontsize)
 
-    TFconst1 = ROOT.TF1("TFconst1","1.",config.xratiorange[0],config.xratiorange[1])
+    TFconst1 = ROOT.TF1("TFconst1","1.",MultiSpec.GetXaxis().GetXmin(),  MultiSpec.GetXaxis().GetXmax())
+    TGconst1 = ROOT.TGraph(TFconst1)
+    TGconst1.SetLineColor(colortable[DivPos%LenColor])
+    TGconst1.SetLineWidth(4)
+    MultiRatio.Add(TGconst1,"l")
     for idx,graphdata in enumerate(graphlist):
         if graphdata.skipratio:
             continue
         if not graphdata.ratiolegend:
             graphdata._replace(ratiolegend= graphdata.legend)
         if graphdata.divisor:
-            TFconst1.SetLineColor(colortable[idx%LenColor])
-            TFconst1.SetLineWidth(4)
-            TRatioLeg.AddEntry(TFconst1, ("  %s"%(' '.join(graphdata.ratiolegend))),"l")
+        #    TGconst1.SetLineColor(colortable[idx%LenColor])
+        #    TGconst1.SetLineWidth(4)
+            TRatioLeg.AddEntry(TGconst1, ("  %s"%(' '.join(graphdata.ratiolegend))),"l")
             continue
         if graphdata.skipratiomarker:
             TRatioLeg.AddEntry("", ("  %s"%(' '.join(graphdata.ratiolegend))),"")
@@ -573,7 +626,7 @@ if  config.ratio or config.plusratio:
     if config.yratiorange:
         MultiRatio.GetYaxis().SetRangeUser(config.yratiorange[0],config.yratiorange[1])
     
-    TFconst1.Draw("same")
+    #TFconst1.Draw("same")
 
     if config.ratiolegend:
         TRatioLeg.Draw("same")
@@ -622,7 +675,7 @@ if  config.ratio or config.plusratio:
             MultiRatio.Draw("AP pmc plc")
         else:
             MultiRatio.Draw("AP")
-        TFconst1.Draw("same")
+        #TFconst1.Draw("same")
         
         ROOT.gPad.RedrawAxis()
 

@@ -22,6 +22,8 @@ import linecache
 
 def CalcRatio( graph1, graph2 ):
     print ("Ratio calculation")
+    print graph1
+    print graph2
     bins1 = graph1.GetN()
     bins2 = graph2.GetN()
     if (bins1 != bins2):
@@ -84,7 +86,6 @@ def CalcRatio( graph1, graph2 ):
         RatioGraph.SetPoint(i,x1,y_ratio)
         RatioGraph.SetPointError(i,x1low,x1up,e_low,e_up)
         
-    #MultiRatio.Add(RatioGraph)
 
     return RatioGraph
 
@@ -100,28 +101,22 @@ def ReadBinning( bincenter, binwidth ):
     for li in FileBinning:
         splitline = li.split()
         binedges.append(float(splitline[0]))
-        #print splitline[0]
     
     for i in range(len(binedges)-1):
         bincenter.append((binedges[i]+binedges[i+1])/2)
         binwidth.append(abs(binedges[i]-binedges[i+1])/2)
     
-    #print binedges
-    #print bincenter
-    #print binwidth
     
 def FillTge( inputfile ):
     print ("TGE")
     InputTge = ROOT.TGraphErrors(inputfile)
     InputTge.SetName("%s"%(inputfile))
-    #objectlist.append(InputTge)
     return InputTge
 
 def FillTgae( inputfile ):
     print("TGAE")
     InputTgae = ROOT.TGraphErrors(inputfile)
     InputTgae.SetName("%s"%(inputfile))
-    #objectlist.append(InputTgae)
     return InputTgae
 
 def ReadHepData( inputfile ):
@@ -140,9 +135,6 @@ def ReadUnumpy( inputfile, columns ):
     BinCenter = []
     BinXerror = []
     ReadBinning( BinCenter, BinXerror )
-    #print Values
-    #print BinCenter
-    #print BinXerror
     if ( len(BinCenter) != len(Values) ) :
         print( "Size of binning and number of values don't agree. Stopping macro!")
         return
@@ -214,20 +206,15 @@ def SavePlots():
             TCplus.SaveAs("plots/%s_plus.%s"%(config.name,oformat))
 
 
-
-
-
-    
-
 fileparser = argparse.ArgumentParser()
 fileparser.add_argument("-f", "--filename", nargs='+')
 fileparser.add_argument("-bf", "--boxfilename", nargs='+') #Data points with errors drawn as boxes
 fileparser.add_argument("-ld", "--legend", default="", nargs='+')
-fileparser.add_argument("-nc", "--numbercolumns") #Define columns for unumpy import. No longer needed? Should be replaced by automatic column detection
 fileparser.add_argument("-nm", "--nomarker", action="store_true")
 fileparser.add_argument("-rd", "--ratiodivisor", action="store_true") #Ratio can only be calculated with exactly one input variable chosen as divisor - only works if the same binning is chosen for all files
 fileparser.add_argument("-rld", "--ratiolegend", default="", nargs='+')
 fileparser.add_argument("-rnm", "--rationomarker", action="store_true")
+fileparser.add_argument("-rbe", "--ratioboxerror", action="store_true") #Use error from boxfile for error propagation, if both inputs are given
 fileparser.add_argument("-sr", "--skipratio", action="store_true")
 fileparser.add_argument("-fb", "--filebinning")
 fileparser.add_argument("-sro", "--skiprows", type=int, default=0)
@@ -256,10 +243,12 @@ parser.add_argument("-xt", "--xtitle", default="", nargs='+')
 parser.add_argument("-yr", "--yrange", nargs=2, type=float)
 parser.add_argument("-yt", "--ytitle", default="", nargs='+')
 parser.add_argument("--xlog", action="store_true")
-parser.add_argument("--xrlog", action="store_true")
 parser.add_argument("--ylog", action="store_true")
-parser.add_argument("--yrlog", action="store_true")
-parser.add_argument("-st", "--stack", action="store_true")
+parser.add_argument("-of", "--outputformat", nargs='+', default=["pdf","png"])
+parser.add_argument("-sp", "--setpalette", default=77, type=int, choices=range(51,114))
+parser.add_argument("-up", "--usepalette", action="store_true")
+parser.add_argument("-ct", "--colortable", type=int, default=2)
+parser.add_argument("-mt", "--markertable", type=int, default=1)
 #ratio config
 parser.add_argument("-mxl", "--morexlables", action="store_true") #Only works with log axis
 parser.add_argument("-myl", "--moreylables", action="store_true") #Only works with log axis
@@ -271,32 +260,29 @@ parser.add_argument("-rl", "--ratiolegend", action="store_true")
 parser.add_argument("-rlp", "--ratiolegendposition", nargs =2, default=[0.5,0.8], type=float) #Defines top left corner of TLegend
 parser.add_argument("-xrr", "--xratiorange", nargs=2, type=float)
 parser.add_argument("-yrr", "--yratiorange", nargs=2, type=float)
-parser.add_argument("-of", "--outputformat", nargs='+', default=["pdf","png"])
-parser.add_argument("-sp", "--setpalette", default=77, type=int, choices=range(51,114))
-parser.add_argument("-up", "--usepalette", action="store_true")
-parser.add_argument("-ct", "--colortable", type=int, default=2)
-parser.add_argument("-mt", "--markertable", type=int, default=1)
+parser.add_argument("--xrlog", action="store_true")
+parser.add_argument("--yrlog", action="store_true")
 
 #parser.add_argument("-", "--")
 
 config_line = ''
 
-filecheck = ['-f ','--filename ']
+filecheck = ['-f ', '-bf ', '--filename ', '--boxfilename ']
 
 inputdeque = deque()
-fileconfig = namedtuple('fileconfig','path boxpath legend ratiolegend skipmarker skipratiomarker skipratio divisor binning skiprows')
+fileconfig = namedtuple('fileconfig','path boxpath ratiobox legend ratiolegend skipmarker skipratiomarker skipratio divisor binning skiprows')
 
 with open(sys.argv[1],'r') as f:    #path to file with config of plot
     for li in f:
         if any ([x in li for x in filecheck]):
             lineargs = fileparser.parse_args(li.split())
-#Alternative storing scheme to store ratio divisor always at first object
+            #Alternative storing scheme to store ratio divisor always at first object
             #if lineargs.ratiodivisor:
             #    #Put the ratiodivisor always on the first place
             #    inputdeque.appendleft(fileconfig(lineargs.filename, lineargs.legend, lineargs.ratiolegend, lineargs.nomarker, lineargs.rationomarker, lineargs.skipratio, lineargs.ratiodivisor, lineargs.filebinning)) 
             #else:
             #    inputdeque.append(fileconfig(lineargs.filename, lineargs.legend, lineargs.ratiolegend, lineargs.nomarker, lineargs.rationomarker, lineargs.skipratio, lineargs.ratiodivisor, lineargs.filebinning)) 
-            inputdeque.append(fileconfig(lineargs.filename, lineargs.boxfilename, lineargs.legend, lineargs.ratiolegend, lineargs.nomarker, lineargs.rationomarker, lineargs.skipratio, lineargs.ratiodivisor, lineargs.filebinning, lineargs.skiprows)) 
+            inputdeque.append(fileconfig(lineargs.filename, lineargs.boxfilename, lineargs.ratioboxerror, lineargs.legend, lineargs.ratiolegend, lineargs.nomarker, lineargs.rationomarker, lineargs.skipratio, lineargs.ratiodivisor, lineargs.filebinning, lineargs.skiprows)) 
             
 
         else:
@@ -329,7 +315,6 @@ for idx,inputconf in enumerate(inputdeque):
     boxgraph= None
     returngraph = None
     if inputconf.path:
-        #print (idx)
         objectlist = []
         print (inputconf)
         listsize = len(inputconf.path)
@@ -363,16 +348,13 @@ for idx,inputconf in enumerate(inputdeque):
         try:
             if objectlist[jdx].InheritsFrom("TH1"):
                 print ("Storing TH1")
-                    #Use inputconf for storing and replace path by TGraph
-                #graphlist.append(inputconf._replace(path=ROOT.TGraphAsymmErrors(objectlist[jdx]),))
+                #Use inputconf for storing and replace path by TGraph
                 returngraph=ROOT.TGraphAsymmErrors(objectlist[jdx])
             elif objectlist[jdx].InheritsFrom("TGraph"):
                 print ("Storing TGraph")
-                #graphlist.append(inputconf._replace(path=objectlist[jdx],))
                 returngraph=objectlist[jdx]
         #TODO: Add possibilty to add function (TF1)
         except Exception as e:
-            #print (e)
             print ("Cannot not process: \'%s\', no inheritance from TH1 or TGraph. No plotting.  "%(listin))
             #break
     if inputconf.boxpath:
@@ -430,9 +412,14 @@ print ("%s \n"%(graphlist))
 DivPos = 0
 DivPos2 = 0
 Divisor = 0
+DivGraph = None
 for idx,inputdata in enumerate(graphlist):
-    graph = inputdata.path
+    if inputdata.ratiobox or not inputdata.path:
+        graph = inputdata.boxpath
+    else:
+        graph = inputdata.path
     print graph
+
     bins = graph.GetN()
 
 
@@ -440,6 +427,7 @@ for idx,inputdata in enumerate(graphlist):
     if inputdata.divisor:
         print ("Divisor: %s"%(graph))
         DivPos = idx
+        DivGraph = graph
         Divisor+=1
     #for i in range(0,bins):
     #    print i
@@ -492,11 +480,6 @@ TCspectrum = ROOT.TCanvas("TCspectrum","",20,20,config.sizex,config.sizey)
 
 MultiSpec = ROOT.TMultiGraph()
 
-#if config.ratio or config.plusratio:
-#    THSRatio = ROOT.THStack("THSRatio","%s_ratio"%(config.title))
-
-
-
 if config.xlog:
     ROOT.gPad.SetLogx()
 if config.ylog:
@@ -525,19 +508,32 @@ if config.label:
 
 
 for idx,graphdata in enumerate(graphlist):
-    graphdata.path.SetMarkerColor(colortable[idx%LenColor])
-    graphdata.path.SetLineColor(colortable[idx%LenColor])
-    graphdata.path.SetLineWidth(int(1*config.markersize)) #May need improvement with config.markersize, but only accepts int
-    graphdata.path.SetMarkerStyle(markertable[idx%LenMarker][0])
-    graphdata.path.SetMarkerSize(markertable[idx%LenMarker][1]*config.markersize)
-    TLeg.AddEntry(graphdata.path, ("  %s"%(' '.join(graphdata.legend))))
+    if graphdata.boxpath:
+        graphdata.boxpath.SetLineColor(colortable[idx%LenColor])
+        graphdata.boxpath.SetFillStyle(0)
+        graphdata.boxpath.SetLineWidth(int(1*config.markersize)) #May need improvement with config.markersize, but only accepts int
+        MultiSpec.Add(graphdata.boxpath,"5")
+    if graphdata.path:
+        graphdata.path.SetMarkerColor(colortable[idx%LenColor])
+        graphdata.path.SetLineColor(colortable[idx%LenColor])
+        graphdata.path.SetLineWidth(int(1*config.markersize)) #May need improvement with config.markersize, but only accepts int
+        graphdata.path.SetMarkerStyle(markertable[idx%LenMarker][0])
+        graphdata.path.SetMarkerSize(markertable[idx%LenMarker][1]*config.markersize)
+        MultiSpec.Add(graphdata.path,"P")
     if graphdata.skipmarker:
         TLeg.AddEntry("", ("  %s"%(' '.join(graphdata.legend))),"")
-    MultiSpec.Add(graphdata.path)
+    elif graphdata.path:
+        if graphdata.boxpath:
+            TLeg.AddEntry(graphdata.path, ("  %s"%(' '.join(graphdata.legend))),"fp")
+        else:
+            TLeg.AddEntry(graphdata.path, ("  %s"%(' '.join(graphdata.legend))),"p")
+    elif graphdata.boxpath:
+        TLeg.AddEntry(graphdata.boxpath, ("  %s"%(' '.join(graphdata.legend))),"f")
+
 if config.usepalette:
-    MultiSpec.Draw("AP pmc plc")
+    MultiSpec.Draw("A pmc plc")
 else:
-    MultiSpec.Draw("AP")
+    MultiSpec.Draw("A")
 
 MultiSpec.SetTitle("%s;%s;%s"%(' '.join(config.title),' '.join(config.xtitle),' '.join(config.ytitle)))
     
@@ -590,33 +586,35 @@ if  config.ratio or config.plusratio:
     TGconst1.SetLineWidth(4)
     MultiRatio.Add(TGconst1,"l")
     for idx,graphdata in enumerate(graphlist):
+        print graphdata
         if graphdata.skipratio:
             continue
         if not graphdata.ratiolegend:
             graphdata._replace(ratiolegend= graphdata.legend)
         if graphdata.divisor:
-        #    TGconst1.SetLineColor(colortable[idx%LenColor])
-        #    TGconst1.SetLineWidth(4)
             TRatioLeg.AddEntry(TGconst1, ("  %s"%(' '.join(graphdata.ratiolegend))),"l")
             continue
         if graphdata.skipratiomarker:
             TRatioLeg.AddEntry("", ("  %s"%(' '.join(graphdata.ratiolegend))),"")
         else:
             TRatioLeg.AddEntry(graphdata.path, ("  %s"%(' '.join(graphdata.ratiolegend))),"p")
-
-        ratiograph = CalcRatio(graphdata.path,graphlist[DivPos].path)
+        
+        if graphdata.ratiobox or not graphdata.path:
+            ratiograph = CalcRatio(graphdata.boxpath,DivGraph)
+        else:
+            ratiograph = CalcRatio(graphdata.path,DivGraph)
         ratiograph.SetMarkerColor(colortable[idx%LenColor])
         ratiograph.SetLineColor(colortable[idx%LenColor])
         ratiograph.SetLineWidth(int(1*config.markersize)) #May need improvement with config.markersize, but only accepts int
         ratiograph.SetMarkerStyle(markertable[idx%LenMarker][0])
         ratiograph.SetMarkerSize(markertable[idx%LenMarker][1]*config.markersize)
-        MultiRatio.Add(ratiograph)
+        MultiRatio.Add(ratiograph,"P")
 
 
     if config.usepalette:
-        MultiRatio.Draw("AP pmc plc")
+        MultiRatio.Draw("A pmc plc")
     else:
-        MultiRatio.Draw("AP")
+        MultiRatio.Draw("A")
 
     MultiRatio.GetXaxis().SetTitle("%s"%(' '.join(config.xtitle)))
     MultiRatio.SetTitle("%s_ratio"%(' '.join(config.xtitle)))
@@ -625,8 +623,6 @@ if  config.ratio or config.plusratio:
         MultiRatio.GetXaxis().SetRangeUser(config.xratiorange[0],config.xratiorange[1])
     if config.yratiorange:
         MultiRatio.GetYaxis().SetRangeUser(config.yratiorange[0],config.yratiorange[1])
-    
-    #TFconst1.Draw("same")
 
     if config.ratiolegend:
         TRatioLeg.Draw("same")
@@ -649,10 +645,8 @@ if  config.ratio or config.plusratio:
         TLegPlus = TLeg.Clone("TLegPlus")
         if config.legendtitle:  #Extend legend size due to shrinked canvas. NEED TO RESET Y1 instead of Y2, because TBox orders Y1 and Y2 by size and the legend position is defined by the top left corner (Y1 > Y2).
             TLegPlus.SetY1(config.legendposition[1]-((len(inputdeque)+1)*(0.02*config.markersize))/(1-config.pluspadratio))
-            #TLegPlus.SetY2(config.legendposition[1]-((len(filelist)+1)*(0.02*config.markersize)))
         else:
             TLegPlus.SetY1(config.legendposition[1]-(len(inputdeque)*(0.02*config.markersize))/(1-config.pluspadratio))
-            #TLegPlus.SetY2(config.legendposition[1]-(len(filelist)*(0.02*config.markersize)))
         
     
         TCplus.cd(1)
@@ -675,7 +669,6 @@ if  config.ratio or config.plusratio:
             MultiRatio.Draw("AP pmc plc")
         else:
             MultiRatio.Draw("AP")
-        #TFconst1.Draw("same")
         
         ROOT.gPad.RedrawAxis()
 

@@ -27,8 +27,8 @@ def CalcRatio( graph1, graph2 ):
     bins1 = graph1.GetN()
     bins2 = graph2.GetN()
     if (bins1 != bins2):
-        print bins1, bins2
-        print ("Graph %s and graph %s have different binning, no ratio calculation"%(graph1,graph2))
+        print ("Binning 1: %s - Binning 2: %s"%(bins1, bins2))
+        sys.exit("Graph %s and graph %s have different binning, no ratio calculation"%(graph1,graph2))
         return
     #Implement alternative which works for diffferent binnings and looks up the corresponding bins for ratio calculation
     
@@ -214,10 +214,10 @@ fileparser.add_argument("-nm", "--nomarker", action="store_true")
 fileparser.add_argument("-rd", "--ratiodivisor", action="store_true") #Ratio can only be calculated with exactly one input variable chosen as divisor - only works if the same binning is chosen for all files
 fileparser.add_argument("-rld", "--ratiolegend", default="", nargs='+')
 fileparser.add_argument("-rnm", "--rationomarker", action="store_true")
-fileparser.add_argument("-rbe", "--ratioboxerror", action="store_true") #Use error from boxfile for error propagation, if both inputs are given
+fileparser.add_argument("-rbr", "--ratioboxerror", action="store_true") #Use error from boxfile for error propagation, if both inputs are given
 fileparser.add_argument("-sr", "--skipratio", action="store_true")
 fileparser.add_argument("-fb", "--filebinning")
-fileparser.add_argument("-sro", "--skiprows", type=int, default=0)
+fileparser.add_argument("-sro", "--skiprows", type=int, default=0) #Skip first x rows, when reading text file
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-ac", "--alternativecolors", action="store_true")
@@ -226,6 +226,8 @@ parser.add_argument("-bm", "--bottommargin", default=0.1, type=float)
 parser.add_argument("-lb", "--label", nargs='+')
 parser.add_argument("-lbx", "--labelbox", nargs=4, default=[0.15,0.25,0.6,0.15], type=float)
 parser.add_argument("-lm", "--leftmargin", default=0.08, type=float)
+parser.add_argument("-l", "--legend", action="store_true")
+parser.add_argument("-lox", "--labeloffsetx", default=0.01, type=float)
 parser.add_argument("-lp", "--legendposition", nargs =2, default=[0.5,0.8], type=float) #Defines top left corner of TLegend
 parser.add_argument("-lt", "--legendtitle", nargs='+')
 parser.add_argument("-ms", "--markersize", default=1., type=float)
@@ -244,6 +246,7 @@ parser.add_argument("-yr", "--yrange", nargs=2, type=float)
 parser.add_argument("-yt", "--ytitle", default="", nargs='+')
 parser.add_argument("--xlog", action="store_true")
 parser.add_argument("--ylog", action="store_true")
+parser.add_argument("-xbl", "--xbinlabel", nargs='+') #Change bin labels number has to agree with number of values on axis
 parser.add_argument("-of", "--outputformat", nargs='+', default=["pdf","png"])
 parser.add_argument("-sp", "--setpalette", default=77, type=int, choices=range(51,114))
 parser.add_argument("-up", "--usepalette", action="store_true")
@@ -293,7 +296,7 @@ with open(sys.argv[1],'r') as f:    #path to file with config of plot
                 config_line += ' '
             else:
                 print ('Line \"' + li +'\" does not start with an option for a variable')
-            print config_line
+            #print config_line
 
 
 config = parser.parse_args(config_line.split())
@@ -485,6 +488,8 @@ if config.xlog:
 if config.ylog:
     ROOT.gPad.SetLogy()
 
+
+
 if config.legendtitle:
     TLeg = ROOT.TLegend(config.legendposition[0],config.legendposition[1],config.legendposition[0]+0.05,config.legendposition[1]-(len(inputdeque)+1)*(0.02*config.markersize))
 else:
@@ -530,12 +535,25 @@ for idx,graphdata in enumerate(graphlist):
     elif graphdata.boxpath:
         TLeg.AddEntry(graphdata.boxpath, ("  %s"%(' '.join(graphdata.legend))),"f")
 
+MultiSpec.SetTitle("%s;%s;%s"%(' '.join(config.title),' '.join(config.xtitle),' '.join(config.ytitle)))
+
+if config.xbinlabel:
+    xlabels=' '.join(config.xbinlabel)
+    xlabels=xlabels.split(";")
+    #print (xlabels,len(xlabels))
+    MultiSpec.GetXaxis().SetNdivisions(-len(xlabels))
+    MultiSpec.GetXaxis().CenterLabels()
+    for i in range(len(xlabels)):
+        MultiSpec.GetXaxis().ChangeLabel(i+1,30,-1,-1,-1,-1,xlabels[i])
+
+
+MultiSpec.GetXaxis().SetLabelOffset(config.labeloffsetx)
+
 if config.usepalette:
     MultiSpec.Draw("A pmc plc")
 else:
     MultiSpec.Draw("A")
 
-MultiSpec.SetTitle("%s;%s;%s"%(' '.join(config.title),' '.join(config.xtitle),' '.join(config.ytitle)))
     
 if config.xrange:
     MultiSpec.GetXaxis().SetRangeUser(config.xrange[0],config.xrange[1])
@@ -545,8 +563,8 @@ if config.morexlables:
     MultiSpec.GetXaxis().SetMoreLogLabels(True)
 if config.moreylables:
     MultiSpec.GetYaxis().SetMoreLogLabels(True)
-
-TLeg.Draw("")
+if config.legend:
+    TLeg.Draw("")
 
 if config.label:
     Label.Draw("")
@@ -563,8 +581,8 @@ if not config.xratiorange:
     else:
         config.xratiorange=config.xrange
 
-print config.xrange
-print config.xratiorange
+#print config.xrange
+#print config.xratiorange
 
 ########## Ratio graph
 
@@ -673,6 +691,6 @@ if  config.ratio or config.plusratio:
         ROOT.gPad.RedrawAxis()
 
         
-    
-SavePlots()
+if config.save:
+    SavePlots()
 

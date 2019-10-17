@@ -19,6 +19,7 @@ import numpy as np
 import argparse 
 import designtables as design
 import linecache
+import re
 
 def CalcRatio( graph1, graph2 ):
     print ("Ratio calculation")
@@ -119,6 +120,21 @@ def FillTgae( inputfile ):
     InputTgae.SetName("%s"%(inputfile))
     return InputTgae
 
+def FillTge1( inputfile ):
+    
+    Values = np.loadtxt(inputfile,dtype=object)
+    BinCenter = []
+    BinXerror = []
+    ReadBinning( BinCenter, BinXerror )
+    if ( len(BinCenter) != len(Values) ) :
+        print( "Size of binning and number of values don't agree. Stopping macro!")
+        return
+
+    InputTge1 = ROOT.TGraphErrors(len(BinCenter),np.array(BinCenter,'d'),np.array(Values,'d'),np.array(BinXerror,'d'))
+    InputTge1.SetName("%s"%(inputfile))
+
+    return InputTge1
+
 def ReadHepData( inputfile ):
     #Should work with hep root files and ReadRootFile
     print ("Read from hep data file not imnplemented. Please try root file from hep data homepage.")
@@ -148,6 +164,7 @@ def ReadUnumpy( inputfile, columns ):
 def ReadData( datafile , skiprows ):
     # Count number of columns and decide what data format 
     # 1 column & +/- -> unumpy
+    # 1 column & binning -> TGraphErrors (To show the bin width)
     # 2-4 columns -> TGraphErrors
     # 6 columns -> TGraphAsymmErrors
     print datafile
@@ -158,12 +175,14 @@ def ReadData( datafile , skiprows ):
     print ("%s column(s)"%(columns))
     if "+/-" in line:
         return (ReadUnumpy( datafile, columns ))
+    elif 1 == columns and inputconf.binning:
+        return (FillTge1( datafile ))
     elif columns >= 2 and columns <=4:
         return (FillTge( datafile ))
-    elif columns == 6:
+    elif 6 == columns:
         return (FillTgae( datafile ))
     else:
-        print("Cannot identify input file format. Not Importing %s."%(datafile))
+        sys.exit("Cannot identify input file format. Not Importing %s."%(datafile))
 
         return
 
@@ -260,13 +279,27 @@ parser.add_argument("-ppr", "--pluspadratio", default=0.3, type=float)
 parser.add_argument("-r", "--ratio", action="store_true")
 parser.add_argument("-rbe", "--ratiobinomialerr", action="store_true")
 parser.add_argument("-rl", "--ratiolegend", action="store_true")
-parser.add_argument("-rlp", "--ratiolegendposition", nargs =2, default=[0.5,0.8], type=float) #Defines top left corner of TLegend
-parser.add_argument("-xrr", "--xratiorange", nargs=2, type=float)
-parser.add_argument("-yrr", "--yratiorange", nargs=2, type=float)
-parser.add_argument("--xrlog", action="store_true")
-parser.add_argument("--yrlog", action="store_true")
+parser.add_argument("-rlp", "--ratiolegendposition", nargs =2, default=[0.5,0.8], type=float, 
+        help='Set top left corner of legend in ratio plot')
+parser.add_argument("-xrr", "--xratiorange", nargs=2, type=float, 
+        help='Set x-axis range for ratio.')
+parser.add_argument("-yrr", "--yratiorange", nargs=2, type=float, 
+        help='Set y-axis range for ratio.')
+parser.add_argument("--xrlog", action="store_true", 
+        help='Plot log x-axis for ratio.')
+parser.add_argument("--yrlog", action="store_true", 
+        help='Plot log y-axis for ratio.')
+parser.add_argument("-v", "--verbose", action="store_true",
+        help='Enable verose output')
 
 #parser.add_argument("-", "--")
+helper = re.compile('--help|-h')
+if helper.match(sys.argv[1]):
+    print("Possible flags for loaded files:")
+    fileparser.print_help()
+    print("Possible flags for general plotting:")
+    parser.print_help()
+    sys.exit()
 
 config_line = ''
 

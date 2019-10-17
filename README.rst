@@ -39,7 +39,7 @@ Input files
 Currently the following input files are supported:
 
    - .root files, including a path inside the .root file (i.e. file.root tdirectoryname tlistname histogramname)
-   - Multicolumn text files (Files with 2 to 4 columns will be interpreted as TGraphErrors, files with 6 columns will be interpreted as TGraphAsymmErrors
+   - Multicolumn text files (Files with 1 column will be interpreted as TGraphErrors, but need an addiotional binning file, files with 2 to 4 columns will be interpreted as TGraphErrors, files with 6 columns will be interpreted as TGraphAsymmErrors
    - unumpy arrays stored into text format
 
 Options

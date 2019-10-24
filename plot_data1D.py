@@ -238,7 +238,9 @@ fileparser.add_argument("-sr", "--skipratio", action="store_true")
 fileparser.add_argument("-fb", "--filebinning")
 fileparser.add_argument("-sro", "--skiprows", type=int, default=0) #Skip first x rows, when reading text file
 
-parser = argparse.ArgumentParser()
+parser = argparse.ArgumentParser(
+        formatter_class=argparse.RawTextHelpFormatter 
+        )
 parser.add_argument("-ac", "--alternativecolors", action="store_true")
 parser.add_argument("-bc", "--bincenter") #This option will only work with tgrapherrors
 parser.add_argument("-bm", "--bottommargin", default=0.1, type=float)
@@ -265,9 +267,16 @@ parser.add_argument("-yr", "--yrange", nargs=2, type=float)
 parser.add_argument("-yt", "--ytitle", default="", nargs='+')
 parser.add_argument("--xlog", action="store_true")
 parser.add_argument("--ylog", action="store_true")
-parser.add_argument("-xbl", "--xbinlabel", nargs='+', help='Change bin labels on x-axis, number of arguments has to agree with number of bins on axis.')
+parser.add_argument("-xbl", "--xbinlabel", nargs='+', help=
+        'Change bin labels on x-axis, number of arguments has to agree with number of bins on axis.')
 parser.add_argument("-of", "--outputformat", nargs='+', default=["pdf","png"])
 parser.add_argument("-sp", "--setpalette", default=77, type=int, choices=range(51,114))
+parser.add_argument("-pc","--palettecolors",default=0, type=int, choices=range(0,4), help=('''
+        Defines color distribution in palette :
+        0: Equidistant distributed over palette, avoid minimum/maximum
+        1: Equidistant distributed over palette, start at minimum, avoid maximum
+        2: Equidistant distributed over palette, avoid minimum, include maximum
+        3: Equidistant distributed over palette, include minimum/maximum '''))
 parser.add_argument("-up", "--usepalette", action="store_true")
 parser.add_argument("-ct", "--colortable", type=int, default=2)
 parser.add_argument("-mt", "--markertable", type=int, default=1)
@@ -313,7 +322,9 @@ fileconfig = namedtuple('fileconfig','path boxpath ratiobox legend ratiolegend s
 
 with open(sys.argv[1],'r') as f:    #path to file with config of plot
     for li in f:
-        if any ([x in li for x in filecheck]):
+        if li[0] is "#":
+            continue
+        elif any ([x in li for x in filecheck]):
             lineargs = fileparser.parse_args(li.split())
             #Alternative storing scheme to store ratio divisor always at first object
             #if lineargs.ratiodivisor:
@@ -327,7 +338,7 @@ with open(sys.argv[1],'r') as f:    #path to file with config of plot
         else:
             li = li.strip()
             li = li.strip('\n')
-            if '-' in li:
+            if li[0] is "-":
                 config_line += li 
                 config_line += ' '
             else:
@@ -447,6 +458,7 @@ for idx,inputconf in enumerate(inputdeque):
 
 print "Graph list:"
 print ("%s \n"%(graphlist))
+NrGraphs = len(graphlist)
 
 DivPos = 0
 DivPos2 = 0
@@ -507,11 +519,28 @@ ROOT.gStyle.SetTitleYSize(fontsize)
 ROOT.gStyle.SetTitleXSize(fontsize)
 ROOT.gStyle.SetPalette(config.setpalette)
 
+NrColors =  ROOT.TColor.GetNumberOfColors()
+
+
+
 markertable = design.LoadMarker(config.markertable)
 LenMarker = len(markertable)
 
 
-colortable = design.LoadColor(config.colortable)
+colortable = []
+if config.usepalette:
+    for i in range(NrGraphs):
+        if config.palettecolors is 0:
+            colortable.append(ROOT.TColor.GetColorPalette((i)*int(NrColors/(NrGraphs))+int(NrColors/(2*NrGraphs))))
+        elif config.palettecolors is 1: 
+            colortable.append(ROOT.TColor.GetColorPalette(i*int(NrColors/(NrGraphs)))) #Alternative color scheme with using lowest value
+        elif config.palettecolors is 2: 
+            colortable.append(ROOT.TColor.GetColorPalette((i+1)*int(NrColors/(NrGraphs)))) #Alternative color scheme with using highest value
+        elif config.palettecolors is 3: 
+            colortable.append(ROOT.TColor.GetColorPalette(i*int(NrColors/(NrGraphs-1)))) #Alternative color scheme with using maximum range
+else:
+    colortable = design.LoadColor(config.colortable)
+
 LenColor = len(colortable)
 
 ########## General histogram
@@ -585,10 +614,7 @@ if config.xbinlabel:
 
 MultiSpec.GetXaxis().SetLabelOffset(config.labeloffsetx)
 
-if config.usepalette:
-    MultiSpec.Draw("A pmc plc")
-else:
-    MultiSpec.Draw("A")
+MultiSpec.Draw("A")
 
     
 if config.xrange:
@@ -665,10 +691,7 @@ if  config.ratio or config.plusratio:
         MultiRatio.Add(ratiograph,"P")
 
 
-    if config.usepalette:
-        MultiRatio.Draw("A pmc plc")
-    else:
-        MultiRatio.Draw("A")
+    MultiRatio.Draw("A")
 
     MultiRatio.GetXaxis().SetTitle("%s"%(' '.join(config.xtitle)))
     MultiRatio.SetTitle("%s_ratio"%(' '.join(config.xtitle)))
@@ -708,10 +731,7 @@ if  config.ratio or config.plusratio:
             ROOT.gPad.SetLogx()
         if config.ylog:
             ROOT.gPad.SetLogy()
-        if config.usepalette:
-            MultiSpec.Draw("AP pmc plc")
-        else:
-            MultiSpec.Draw("AP")
+        MultiSpec.Draw("AP")
         
         TLegPlus.Draw("")
         if config.label:
@@ -719,10 +739,7 @@ if  config.ratio or config.plusratio:
 #        
         TCplus.cd(2)
         MultiRatio.GetXaxis().SetTitleOffset(config.titleoffsetx/config.pluspadratio)
-        if config.usepalette:
-            MultiRatio.Draw("AP pmc plc")
-        else:
-            MultiRatio.Draw("AP")
+        MultiRatio.Draw("AP")
         
         ROOT.gPad.RedrawAxis()
 

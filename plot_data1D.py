@@ -249,7 +249,7 @@ parser.add_argument("-l", "--legend", action="store_true")
 parser.add_argument("-lox", "--labeloffsetx", default=0.01, type=float)
 parser.add_argument("-lp", "--legendposition", nargs =2, default=[0.5,0.8], type=float) #Defines top left corner of TLegend
 parser.add_argument("-lt", "--legendtitle", nargs='+')
-parser.add_argument("-ms", "--markersize", default=1., type=float)
+parser.add_argument("-sc", "--scaling", default=1., type=float, help='Scale markersize and fontsize with constant factor.')
 parser.add_argument("-n", "--name", default="plot")
 parser.add_argument("-rm", "--rightmargin", default=0.04, type=float)
 parser.add_argument("-s", "--save", action="store_true")
@@ -265,16 +265,19 @@ parser.add_argument("-yr", "--yrange", nargs=2, type=float)
 parser.add_argument("-yt", "--ytitle", default="", nargs='+')
 parser.add_argument("--xlog", action="store_true")
 parser.add_argument("--ylog", action="store_true")
-parser.add_argument("-xbl", "--xbinlabel", nargs='+') #Change bin labels number has to agree with number of values on axis
+parser.add_argument("-xbl", "--xbinlabel", nargs='+', help='Change bin labels on x-axis, number of arguments has to agree with number of bins on axis.')
 parser.add_argument("-of", "--outputformat", nargs='+', default=["pdf","png"])
 parser.add_argument("-sp", "--setpalette", default=77, type=int, choices=range(51,114))
 parser.add_argument("-up", "--usepalette", action="store_true")
 parser.add_argument("-ct", "--colortable", type=int, default=2)
 parser.add_argument("-mt", "--markertable", type=int, default=1)
 #ratio config
-parser.add_argument("-mxl", "--morexlables", action="store_true") #Only works with log axis
-parser.add_argument("-myl", "--moreylables", action="store_true") #Only works with log axis
-parser.add_argument("-pr", "--plusratio", action="store_true")
+parser.add_argument("-mxl", "--morexlables", action="store_true",
+        help='Add more ticks to x-axis. Only works with log axis')
+parser.add_argument("-myl", "--moreylables", action="store_true",
+        help='Add more ticks to y-axis. Only works with log axis')
+parser.add_argument("-pr", "--plusratio", action="store_true",
+        help='Create a combined canvas with ratio below spectrum.')
 parser.add_argument("-ppr", "--pluspadratio", default=0.3, type=float)
 parser.add_argument("-r", "--ratio", action="store_true")
 parser.add_argument("-rbe", "--ratiobinomialerr", action="store_true")
@@ -482,7 +485,7 @@ if  config.ratio or config.plusratio:
 ########## ROOT config
 
 font2use = 43
-fontsize = 20*config.markersize
+fontsize = 20*config.scaling
 
 ROOT.gStyle.SetTextFont(font2use)
 ROOT.gStyle.SetTitleFontSize(fontsize)
@@ -524,11 +527,11 @@ if config.ylog:
 
 
 if config.legendtitle:
-    TLeg = ROOT.TLegend(config.legendposition[0],config.legendposition[1],config.legendposition[0]+0.05,config.legendposition[1]-(len(inputdeque)+1)*(0.02*config.markersize))
+    TLeg = ROOT.TLegend(config.legendposition[0],config.legendposition[1],config.legendposition[0]+0.05,config.legendposition[1]-(len(inputdeque)+1)*(0.02*config.scaling))
 else:
-    TLeg = ROOT.TLegend(config.legendposition[0],config.legendposition[1],config.legendposition[0]+0.05,config.legendposition[1]-len(inputdeque)*(0.02*config.markersize))
+    TLeg = ROOT.TLegend(config.legendposition[0],config.legendposition[1],config.legendposition[0]+0.05,config.legendposition[1]-len(inputdeque)*(0.02*config.scaling))
 TLeg.SetFillColor(0)
-TLeg.SetMargin(0.075*config.markersize)
+TLeg.SetMargin(0.075*config.scaling)
 TLeg.SetBorderSize(0)
 TLeg.SetTextFont(font2use)
 TLeg.SetTextSize(fontsize)
@@ -549,14 +552,14 @@ for idx,graphdata in enumerate(graphlist):
     if graphdata.boxpath:
         graphdata.boxpath.SetLineColor(colortable[idx%LenColor])
         graphdata.boxpath.SetFillStyle(0)
-        graphdata.boxpath.SetLineWidth(int(1*config.markersize)) #May need improvement with config.markersize, but only accepts int
+        graphdata.boxpath.SetLineWidth(int(1*config.scaling)) #May need improvement with config.scaling, but only accepts int
         MultiSpec.Add(graphdata.boxpath,"5")
     if graphdata.path:
         graphdata.path.SetMarkerColor(colortable[idx%LenColor])
         graphdata.path.SetLineColor(colortable[idx%LenColor])
-        graphdata.path.SetLineWidth(int(1*config.markersize)) #May need improvement with config.markersize, but only accepts int
+        graphdata.path.SetLineWidth(int(1*config.scaling)) #May need improvement with config.scaling, but only accepts int
         graphdata.path.SetMarkerStyle(markertable[idx%LenMarker][0])
-        graphdata.path.SetMarkerSize(markertable[idx%LenMarker][1]*config.markersize)
+        graphdata.path.SetMarkerSize(markertable[idx%LenMarker][1]*config.scaling)
         MultiSpec.Add(graphdata.path,"P")
     if graphdata.skipmarker:
         TLeg.AddEntry("", ("  %s"%(' '.join(graphdata.legend))),"")
@@ -624,9 +627,9 @@ if  config.ratio or config.plusratio:
     TCratio = ROOT.TCanvas("TCratio","",20,20,config.sizex,config.sizey)
     MultiRatio = ROOT.TMultiGraph()
 
-    TRatioLeg = ROOT.TLegend(config.ratiolegendposition[0],config.ratiolegendposition[1],config.ratiolegendposition[0]+0.25,config.ratiolegendposition[1]-(len(inputdeque)-1)*(0.02*config.markersize))
+    TRatioLeg = ROOT.TLegend(config.ratiolegendposition[0],config.ratiolegendposition[1],config.ratiolegendposition[0]+0.25,config.ratiolegendposition[1]-(len(inputdeque)-1)*(0.02*config.scaling))
     TRatioLeg.SetFillColor(0)
-    TRatioLeg.SetMargin(0.075*config.markersize)
+    TRatioLeg.SetMargin(0.075*config.scaling)
     TRatioLeg.SetBorderSize(0)
     TRatioLeg.SetTextFont(font2use)
     TRatioLeg.SetTextSize(fontsize)
@@ -656,9 +659,9 @@ if  config.ratio or config.plusratio:
             ratiograph = CalcRatio(graphdata.path,DivGraph)
         ratiograph.SetMarkerColor(colortable[idx%LenColor])
         ratiograph.SetLineColor(colortable[idx%LenColor])
-        ratiograph.SetLineWidth(int(1*config.markersize)) #May need improvement with config.markersize, but only accepts int
+        ratiograph.SetLineWidth(int(1*config.scaling)) #May need improvement with config.scaling, but only accepts int
         ratiograph.SetMarkerStyle(markertable[idx%LenMarker][0])
-        ratiograph.SetMarkerSize(markertable[idx%LenMarker][1]*config.markersize)
+        ratiograph.SetMarkerSize(markertable[idx%LenMarker][1]*config.scaling)
         MultiRatio.Add(ratiograph,"P")
 
 
@@ -695,9 +698,9 @@ if  config.ratio or config.plusratio:
         
         TLegPlus = TLeg.Clone("TLegPlus")
         if config.legendtitle:  #Extend legend size due to shrinked canvas. NEED TO RESET Y1 instead of Y2, because TBox orders Y1 and Y2 by size and the legend position is defined by the top left corner (Y1 > Y2).
-            TLegPlus.SetY1(config.legendposition[1]-((len(inputdeque)+1)*(0.02*config.markersize))/(1-config.pluspadratio))
+            TLegPlus.SetY1(config.legendposition[1]-((len(inputdeque)+1)*(0.02*config.scaling))/(1-config.pluspadratio))
         else:
-            TLegPlus.SetY1(config.legendposition[1]-(len(inputdeque)*(0.02*config.markersize))/(1-config.pluspadratio))
+            TLegPlus.SetY1(config.legendposition[1]-(len(inputdeque)*(0.02*config.scaling))/(1-config.pluspadratio))
         
     
         TCplus.cd(1)

@@ -2,12 +2,13 @@
 rootSketch
 ===========
 
-rootSketch should be a macro to create root plots with the help of an easily editbale and readable macro.
-The intention is too create 
+rootSketch should be a macro to create root plots with the help of an easily editbale and readable config file.
 
 
 Usage
 ===========
+
+The macro runs with the following command. The created plots are stored in the folder ``plots``.
 
 ::
 
@@ -45,10 +46,11 @@ Currently the following input files are supported:
 Options
 ============
 
+
 Flags
 -----
 
-For the time being please refer to the argparse commands in the source code.
+A list of all available flags and a short description is provided by calling ``plot_data1D.py``wit ``-h`` or ``--help``.
 
 Color and marker tables
 -----------------------

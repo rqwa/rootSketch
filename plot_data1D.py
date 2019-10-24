@@ -225,72 +225,121 @@ def SavePlots():
             TCplus.SaveAs("plots/%s_plus.%s"%(config.name,oformat))
 
 
-fileparser = argparse.ArgumentParser()
-fileparser.add_argument("-f", "--filename", nargs='+')
-fileparser.add_argument("-bf", "--boxfilename", nargs='+') #Data points with errors drawn as boxes
-fileparser.add_argument("-ld", "--legend", default="", nargs='+')
-fileparser.add_argument("-nm", "--nomarker", action="store_true")
-fileparser.add_argument("-rd", "--ratiodivisor", action="store_true") #Ratio can only be calculated with exactly one input variable chosen as divisor - only works if the same binning is chosen for all files
-fileparser.add_argument("-rld", "--ratiolegend", default="", nargs='+')
-fileparser.add_argument("-rnm", "--rationomarker", action="store_true")
-fileparser.add_argument("-rbr", "--ratioboxerror", action="store_true") #Use error from boxfile for error propagation, if both inputs are given
-fileparser.add_argument("-sr", "--skipratio", action="store_true")
-fileparser.add_argument("-fb", "--filebinning")
-fileparser.add_argument("-sro", "--skiprows", type=int, default=0) #Skip first x rows, when reading text file
+fileparser = argparse.ArgumentParser(
+        formatter_class=argparse.RawTextHelpFormatter 
+        )
+fileparser.add_argument("-f", "--filename", nargs='+',
+        help=('''Provide path to input file.
+        For .root files the path to object within in the file also has to be provided. 
+        I.e. file.root listname histname
+        Input will be plotted as marker.'''))
+fileparser.add_argument("-bf", "--boxfilename", nargs='+',
+        help=('''Provide path to input file.
+        For .root files the path to object within in the file also has to be provided. 
+        I.e. file.root listname histname
+        Input and errors will be plotted as box.'''))
+fileparser.add_argument("-ld", "--legend", default="", nargs='+',
+        help='Provide legend text for input.')
+fileparser.add_argument("-nm", "--nomarker", action="store_true",
+        help='Do not draw marker in legend.')
+fileparser.add_argument("-rd", "--ratiodivisor", action="store_true",
+        help=('''Define selected input as ratio divisor. Ratio can only be calculated with exactly one input variable chosen as divisor.
+        Only works if the same binning is chosen for all files. Input with inappropriate binning may be skipped with --skipratio.'''))
+fileparser.add_argument("-rld", "--ratiolegend", default="", nargs='+',
+        help='Provide ratio legend text for input.')
+fileparser.add_argument("-rnm", "--rationomarker", action="store_true",
+        help='Do not draw marker in ratiolegend.')
+fileparser.add_argument("-rbr", "--ratioboxerror", action="store_true",
+        help='Use error from boxfile for error propagation. Only needed if two input files are provided.')
+fileparser.add_argument("-sr", "--skipratio", action="store_true",
+        help='Ignore this input in ratio plots and calculation.')
+fileparser.add_argument("-fb", "--filebinning",
+        help='Path to file with bin edges, needed for input from text files with one column and unumpy input.')
+fileparser.add_argument("-sro", "--skiprows", type=int, default=0, 
+        help='Skip first x rows, when reading data form text file.')
 
 parser = argparse.ArgumentParser(
         formatter_class=argparse.RawTextHelpFormatter 
         )
-parser.add_argument("-ac", "--alternativecolors", action="store_true")
-parser.add_argument("-bc", "--bincenter") #This option will only work with tgrapherrors
-parser.add_argument("-bm", "--bottommargin", default=0.1, type=float)
-parser.add_argument("-lb", "--label", nargs='+')
-parser.add_argument("-lbx", "--labelbox", nargs=4, default=[0.15,0.25,0.6,0.15], type=float)
-parser.add_argument("-lm", "--leftmargin", default=0.08, type=float)
-parser.add_argument("-l", "--legend", action="store_true")
-parser.add_argument("-lox", "--labeloffsetx", default=0.01, type=float)
+parser.add_argument("-bm", "--bottommargin", default=0.1, type=float,
+        help='Set value for bottom margin.')
+parser.add_argument("-lb", "--label", nargs='+',
+        help='Create label in canvas. Pass text as argument.')
+parser.add_argument("-lbx", "--labelbox", nargs=4, default=[0.15,0.25,0.6,0.15], type=float,
+        help='Define the four corners of the labelbox.')
+parser.add_argument("-lm", "--leftmargin", default=0.08, type=float,
+        help='Set value for left margin.')
+parser.add_argument("-l", "--legend", action="store_true",
+        help='Create legend in spectrum.')
+parser.add_argument("-lox", "--labeloffsetx", default=0.01, type=float,
+        help='Set value for label offset on x-axis.')
 parser.add_argument("-lp", "--legendposition", nargs =2, default=[0.5,0.8], type=float) #Defines top left corner of TLegend
-parser.add_argument("-lt", "--legendtitle", nargs='+')
+parser.add_argument("-lt", "--legendtitle", nargs='+',
+        help='Add title to legend. Pass as argument.')
 parser.add_argument("-sc", "--scaling", default=1., type=float, help='Scale markersize and fontsize with constant factor.')
-parser.add_argument("-n", "--name", default="plot")
-parser.add_argument("-rm", "--rightmargin", default=0.04, type=float)
-parser.add_argument("-s", "--save", action="store_true")
-parser.add_argument("-sx", "--sizex", default=1200, type=int)
-parser.add_argument("-sy", "--sizey", default=900, type =int)
-parser.add_argument("-t", "--title", default="")
-parser.add_argument("-tm", "--topmargin", default=0.04, type=float)
-parser.add_argument("-tox", "--titleoffsetx", default=1., type=float)
-parser.add_argument("-toy", "--titleoffsety", default=1., type=float)
-parser.add_argument("-xr", "--xrange", nargs=2, type=float)
-parser.add_argument("-xt", "--xtitle", default="", nargs='+')
-parser.add_argument("-yr", "--yrange", nargs=2, type=float)
-parser.add_argument("-yt", "--ytitle", default="", nargs='+')
-parser.add_argument("--xlog", action="store_true")
-parser.add_argument("--ylog", action="store_true")
-parser.add_argument("-xbl", "--xbinlabel", nargs='+', help=
-        'Change bin labels on x-axis, number of arguments has to agree with number of bins on axis.')
-parser.add_argument("-of", "--outputformat", nargs='+', default=["pdf","png"])
-parser.add_argument("-sp", "--setpalette", default=77, type=int, choices=range(51,114))
-parser.add_argument("-pc","--palettecolors",default=0, type=int, choices=range(0,4), help=('''
-        Defines color distribution in palette :
+parser.add_argument("-n", "--name", default="plot",
+        help='Set name of save file.')
+parser.add_argument("-rm", "--rightmargin", default=0.04, type=float,
+        help='Set value for right margin.')
+parser.add_argument("-s", "--save", action="store_true",
+        help='Enable saving of plots.')
+parser.add_argument("-sx", "--sizex", default=1200, type=int,
+        help='Set plot size along x-axis.')
+parser.add_argument("-sy", "--sizey", default=900, type =int,
+        help='Set plot size along y-axis.')
+parser.add_argument("-t", "--title", default="",
+        help='Set title of canvas.')
+parser.add_argument("-tm", "--topmargin", default=0.04, type=float,
+        help='Set value for top margin.')
+parser.add_argument("-tox", "--titleoffsetx", default=1., type=float,
+        help='Set value for tilte offset on x-axis.')
+parser.add_argument("-toy", "--titleoffsety", default=1., type=float,
+        help='Set value for tilte offset on y-axis.')
+parser.add_argument("-xr", "--xrange", nargs=2, type=float,
+        help='Set range of x-axis.')
+parser.add_argument("-xt", "--xtitle", default="", nargs='+',
+        help='Set title of x-axis.')
+parser.add_argument("-yr", "--yrange", nargs=2, type=float,
+        help='Set range of y-axis.')
+parser.add_argument("-yt", "--ytitle", default="", nargs='+',
+        help='Set title of y-axis.')
+parser.add_argument("--xlog", action="store_true",
+        help='Plot log x-axis. May require manual setting of --xrange.')
+parser.add_argument("--ylog", action="store_true",
+        help='Plot log y-axis. May require manual setting of --yrange.')
+parser.add_argument("-xbl", "--xbinlabel", nargs='+', 
+        help='Change bin labels on x-axis, number of arguments has to agree with number of bins on axis.')
+parser.add_argument("-of", "--outputformat", nargs='+', default=["pdf","png"],
+        help='Define output format. Pass file ending as argument. File format has to be supported by ROOT.')
+parser.add_argument("-sp", "--setpalette", default=77, type=int, choices=range(51,114),
+        help='Select used palette, from predefined ROOT color palettes.')
+parser.add_argument("-pc","--palettecolors",default=0, type=int, choices=range(0,4), 
+        help=('''Defines color distribution in palette :
         0: Equidistant distributed over palette, avoid minimum/maximum
         1: Equidistant distributed over palette, start at minimum, avoid maximum
         2: Equidistant distributed over palette, avoid minimum, include maximum
         3: Equidistant distributed over palette, include minimum/maximum '''))
-parser.add_argument("-up", "--usepalette", action="store_true")
-parser.add_argument("-ct", "--colortable", type=int, default=2)
-parser.add_argument("-mt", "--markertable", type=int, default=1)
+parser.add_argument("-up", "--usepalette", action="store_true",
+        help='Enable usage of palette for colors.')
+parser.add_argument("-ct", "--colortable", type=int, default=2,
+        help='Set used color table from design file. Will be ignored if palette option is used.')
+parser.add_argument("-mt", "--markertable", type=int, default=1,
+        help='Set used marker table from design file.')
 #ratio config
 parser.add_argument("-mxl", "--morexlables", action="store_true",
         help='Add more ticks to x-axis. Only works with log axis')
 parser.add_argument("-myl", "--moreylables", action="store_true",
         help='Add more ticks to y-axis. Only works with log axis')
 parser.add_argument("-pr", "--plusratio", action="store_true",
-        help='Create a combined canvas with ratio below spectrum.')
-parser.add_argument("-ppr", "--pluspadratio", default=0.3, type=float)
-parser.add_argument("-r", "--ratio", action="store_true")
-parser.add_argument("-rbe", "--ratiobinomialerr", action="store_true")
-parser.add_argument("-rl", "--ratiolegend", action="store_true")
+        help='Create a combined canvas with spectrum (top) and ratio below.')
+parser.add_argument("-ppr", "--pluspadratio", default=0.3, type=float,
+        help='Relative size of ratio pad in combined canvas.')
+parser.add_argument("-r", "--ratio", action="store_true",
+        help='Create ratio plot.')
+parser.add_argument("-rbe", "--ratiobinomialerr", action="store_true",
+        help='Calculate ratio error with binomial error propagation.')
+parser.add_argument("-rl", "--ratiolegend", action="store_true",
+        help='Create a legend in the ratio plot.')
 parser.add_argument("-rlp", "--ratiolegendposition", nargs =2, default=[0.5,0.8], type=float, 
         help='Set top left corner of legend in ratio plot')
 parser.add_argument("-xrr", "--xratiorange", nargs=2, type=float, 
@@ -342,7 +391,7 @@ with open(sys.argv[1],'r') as f:    #path to file with config of plot
                 config_line += li 
                 config_line += ' '
             else:
-                print ('Line \"' + li +'\" does not start with an option for a variable')
+                print ('Line \"' + li +'\" does not start with an option.')
             #print config_line
 
 
@@ -582,7 +631,7 @@ for idx,graphdata in enumerate(graphlist):
         graphdata.boxpath.SetLineColor(colortable[idx%LenColor])
         graphdata.boxpath.SetFillStyle(0)
         graphdata.boxpath.SetLineWidth(int(1*config.scaling)) #May need improvement with config.scaling, but only accepts int
-        MultiSpec.Add(graphdata.boxpath,"5")
+        MultiSpec.Add(graphdata.boxpath,"5",)
     if graphdata.path:
         graphdata.path.SetMarkerColor(colortable[idx%LenColor])
         graphdata.path.SetLineColor(colortable[idx%LenColor])

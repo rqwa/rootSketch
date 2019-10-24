@@ -257,6 +257,10 @@ fileparser.add_argument("-fb", "--filebinning",
         help='Path to file with bin edges, needed for input from text files with one column and unumpy input.')
 fileparser.add_argument("-sro", "--skiprows", type=int, default=0, 
         help='Skip first x rows, when reading data form text file.')
+fileparser.add_argument("-cp", "--customplotting", default="", 
+        help='Use custom plotting options for input file. Overwrites standard options.')
+fileparser.add_argument("-cpb", "--customplottingbox", default="", 
+        help='Use custom plotting options for box input file. Overwrites standard options.')
 
 parser = argparse.ArgumentParser(
         formatter_class=argparse.RawTextHelpFormatter 
@@ -367,7 +371,7 @@ config_line = ''
 filecheck = ['-f ', '-bf ', '--filename ', '--boxfilename ']
 
 inputdeque = deque()
-fileconfig = namedtuple('fileconfig','path boxpath ratiobox legend ratiolegend skipmarker skipratiomarker skipratio divisor binning skiprows')
+fileconfig = namedtuple('fileconfig','path boxpath ratiobox legend ratiolegend skipmarker skipratiomarker skipratio divisor binning skiprows customplotting customplottingbox')
 
 with open(sys.argv[1],'r') as f:    #path to file with config of plot
     for li in f:
@@ -381,7 +385,7 @@ with open(sys.argv[1],'r') as f:    #path to file with config of plot
             #    inputdeque.appendleft(fileconfig(lineargs.filename, lineargs.legend, lineargs.ratiolegend, lineargs.nomarker, lineargs.rationomarker, lineargs.skipratio, lineargs.ratiodivisor, lineargs.filebinning)) 
             #else:
             #    inputdeque.append(fileconfig(lineargs.filename, lineargs.legend, lineargs.ratiolegend, lineargs.nomarker, lineargs.rationomarker, lineargs.skipratio, lineargs.ratiodivisor, lineargs.filebinning)) 
-            inputdeque.append(fileconfig(lineargs.filename, lineargs.boxfilename, lineargs.ratioboxerror, lineargs.legend, lineargs.ratiolegend, lineargs.nomarker, lineargs.rationomarker, lineargs.skipratio, lineargs.ratiodivisor, lineargs.filebinning, lineargs.skiprows)) 
+            inputdeque.append(fileconfig(lineargs.filename, lineargs.boxfilename, lineargs.ratioboxerror, lineargs.legend, lineargs.ratiolegend, lineargs.nomarker, lineargs.rationomarker, lineargs.skipratio, lineargs.ratiodivisor, lineargs.filebinning, lineargs.skiprows, lineargs.customplotting, lineargs.customplottingbox)) 
             
 
         else:
@@ -629,16 +633,25 @@ if config.label:
 for idx,graphdata in enumerate(graphlist):
     if graphdata.boxpath:
         graphdata.boxpath.SetLineColor(colortable[idx%LenColor])
-        graphdata.boxpath.SetFillStyle(0)
         graphdata.boxpath.SetLineWidth(int(1*config.scaling)) #May need improvement with config.scaling, but only accepts int
-        MultiSpec.Add(graphdata.boxpath,"5",)
+        graphdata.boxpath.SetFillStyle(0)
+        graphdata.boxpath.SetMarkerColor(colortable[idx%LenColor])
+        graphdata.boxpath.SetMarkerSize(markertable[idx%LenMarker][1]*config.scaling)
+        graphdata.boxpath.SetMarkerStyle(markertable[idx%LenMarker][0])
+        if graphdata.customplottingbox:
+            MultiSpec.Add(graphdata.boxpath,graphdata.customplottingbox)
+        else:
+            MultiSpec.Add(graphdata.boxpath,"5",)
     if graphdata.path:
-        graphdata.path.SetMarkerColor(colortable[idx%LenColor])
         graphdata.path.SetLineColor(colortable[idx%LenColor])
         graphdata.path.SetLineWidth(int(1*config.scaling)) #May need improvement with config.scaling, but only accepts int
+        graphdata.path.SetMarkerColor(colortable[idx%LenColor])
         graphdata.path.SetMarkerStyle(markertable[idx%LenMarker][0])
         graphdata.path.SetMarkerSize(markertable[idx%LenMarker][1]*config.scaling)
-        MultiSpec.Add(graphdata.path,"P")
+        if graphdata.customplotting:
+            MultiSpec.Add(graphdata.path,graphdata.customplotting)
+        else:
+            MultiSpec.Add(graphdata.path,"P")
     if graphdata.skipmarker:
         TLeg.AddEntry("", ("  %s"%(' '.join(graphdata.legend))),"")
     elif graphdata.path:

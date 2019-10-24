@@ -312,7 +312,7 @@ parser.add_argument("--xlog", action="store_true",
 parser.add_argument("--ylog", action="store_true",
         help='Plot log y-axis. May require manual setting of --yrange.')
 parser.add_argument("-xbl", "--xbinlabel", nargs='+', 
-        help='Change bin labels on x-axis, number of arguments has to agree with number of bins on axis.')
+        help='Change bin labels on x-axis, number of arguments has to agree with number of bins on axis. Use ; as separator.')
 parser.add_argument("-of", "--outputformat", nargs='+', default=["pdf","png"],
         help='Define output format. Pass file ending as argument. File format has to be supported by ROOT.')
 parser.add_argument("-sp", "--setpalette", default=77, type=int, choices=range(51,114),

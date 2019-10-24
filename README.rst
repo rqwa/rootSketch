@@ -46,11 +46,12 @@ Currently the following input files are supported:
 Options
 ============
 
+A commented config is available in ``example.cfg``. 
 
 Flags
 -----
 
-A list of all available flags and a short description is provided by calling ``plot_data1D.py``wit ``-h`` or ``--help``.
+A list of all available flags and a short description is provided by calling ``plot_data1D.py`` with ``-h`` or ``--help``.
 
 Color and marker tables
 -----------------------

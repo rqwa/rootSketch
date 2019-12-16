@@ -15,6 +15,7 @@ from uncertainties import unumpy
 from collections import namedtuple
 from collections import deque #List with fast operations on both sides (right and left)
 from math import sqrt
+import os
 import numpy as np
 import argparse 
 import designtables as design
@@ -279,7 +280,7 @@ parser.add_argument("-lox", "--labeloffsetx", default=0.01, type=float,
         help='Set value for label offset on x-axis.')
 parser.add_argument("-lp", "--legendposition", nargs =2, default=[0.5,0.8], type=float) #Defines top left corner of TLegend
 parser.add_argument("-lt", "--legendtitle", nargs='+',
-        help='Add title to legend. Pass as argument.')
+        help='Add title to legend. Pass as argument. For multiple lines use \\\\ as linebreak.')
 parser.add_argument("-sc", "--scaling", default=1., type=float, help='Scale markersize and fontsize with constant factor.')
 parser.add_argument("-n", "--name", default="plot",
         help='Set name of save file.')
@@ -307,6 +308,8 @@ parser.add_argument("-yr", "--yrange", nargs=2, type=float,
         help='Set range of y-axis.')
 parser.add_argument("-yt", "--ytitle", default="", nargs='+',
         help='Set title of y-axis.')
+parser.add_argument("-yrt", "--yrtitle", default="", nargs='+',
+        help='Set title of y-axis on ratio.')
 parser.add_argument("--xlog", action="store_true",
         help='Plot log x-axis. May require manual setting of --xrange.')
 parser.add_argument("--ylog", action="store_true",
@@ -375,7 +378,7 @@ fileconfig = namedtuple('fileconfig','path boxpath ratiobox legend ratiolegend s
 
 with open(sys.argv[1],'r') as f:    #path to file with config of plot
     for li in f:
-        if li[0] is "#":
+        if li[0] is "#" or li.isspace():
             continue
         elif any ([x in li for x in filecheck]):
             lineargs = fileparser.parse_args(li.split())
@@ -400,6 +403,10 @@ with open(sys.argv[1],'r') as f:    #path to file with config of plot
 
 
 config = parser.parse_args(config_line.split())
+if config.legendtitle:
+    config.legendtitle = (' '.join(config.legendtitle)).split("\\\\") 
+    #double \\ needed due to escape character
+
 #print config
 #print filelist
 #print filelegend
@@ -601,15 +608,10 @@ TCspectrum = ROOT.TCanvas("TCspectrum","",20,20,config.sizex,config.sizey)
 
 MultiSpec = ROOT.TMultiGraph()
 
-if config.xlog:
-    ROOT.gPad.SetLogx()
-if config.ylog:
-    ROOT.gPad.SetLogy()
-
 
 
 if config.legendtitle:
-    TLeg = ROOT.TLegend(config.legendposition[0],config.legendposition[1],config.legendposition[0]+0.05,config.legendposition[1]-(len(inputdeque)+1)*(0.02*config.scaling))
+    TLeg = ROOT.TLegend(config.legendposition[0],config.legendposition[1],config.legendposition[0]+0.05,config.legendposition[1]-(len(inputdeque)+len(config.legendtitle))*(0.02*config.scaling))
 else:
     TLeg = ROOT.TLegend(config.legendposition[0],config.legendposition[1],config.legendposition[0]+0.05,config.legendposition[1]-len(inputdeque)*(0.02*config.scaling))
 TLeg.SetFillColor(0)
@@ -618,16 +620,17 @@ TLeg.SetBorderSize(0)
 TLeg.SetTextFont(font2use)
 TLeg.SetTextSize(fontsize)
 if config.legendtitle:
-    TLeg.AddEntry("", "  %s"%(' '.join(config.legendtitle)),"")
+    for i in range(len(config.legendtitle)):
+        TLeg.AddEntry("", "  %s"%(config.legendtitle[i]),"")
 
 if config.label:
     print config.labelbox
-    Label = ROOT.TLegend(config.labelbox[0],config.labelbox[1],config.labelbox[2],config.labelbox[3])
+    Label = ROOT.TPaveText(config.labelbox[0],config.labelbox[1],config.labelbox[2],config.labelbox[3],"ndc")
     Label.SetFillColor(0)
     Label.SetBorderSize(0)
     Label.SetTextFont(font2use)
     Label.SetTextSize(fontsize)
-    Label.AddEntry("","%s"%(' '.join(config.label)),"")
+    Label.AddText("%s"%(' '.join(config.label)))
 
 
 for idx,graphdata in enumerate(graphlist):
@@ -670,6 +673,8 @@ if config.xbinlabel:
     #print (xlabels,len(xlabels))
     MultiSpec.GetXaxis().SetNdivisions(-len(xlabels))
     MultiSpec.GetXaxis().CenterLabels()
+    print ("Bins: %s"%(MultiSpec.GetXaxis().GetNbins()))
+    print ("Divisions: %s"%(MultiSpec.GetXaxis().GetNdivisions()))
     for i in range(len(xlabels)):
         MultiSpec.GetXaxis().ChangeLabel(i+1,30,-1,-1,-1,-1,xlabels[i])
 
@@ -678,20 +683,27 @@ MultiSpec.GetXaxis().SetLabelOffset(config.labeloffsetx)
 
 MultiSpec.Draw("A")
 
-    
 if config.xrange:
     MultiSpec.GetXaxis().SetRangeUser(config.xrange[0],config.xrange[1])
+else:
+    MultiSpec.GetXaxis().SetRangeUser(MultiSpec.GetXaxis().GetXmin(), MultiSpec.GetXaxis().GetXmax() )
+
 if config.yrange:
     MultiSpec.GetYaxis().SetRangeUser(config.yrange[0],config.yrange[1])
-if config.morexlables:
-    MultiSpec.GetXaxis().SetMoreLogLabels(True)
-if config.moreylables:
-    MultiSpec.GetYaxis().SetMoreLogLabels(True)
 if config.legend:
     TLeg.Draw("")
 
 if config.label:
     Label.Draw("")
+
+if config.xlog:
+    ROOT.gPad.SetLogx()
+    if config.morexlables:
+        MultiSpec.GetXaxis().SetMoreLogLabels(True)
+if config.ylog:
+    ROOT.gPad.SetLogy()
+    if config.moreylables:
+        MultiSpec.GetYaxis().SetMoreLogLabels(True)
 
 ROOT.gPad.RedrawAxis()
 ROOT.gPad.Modified()
@@ -700,13 +712,11 @@ ROOT.gPad.Update()
 
 
 if not config.xratiorange:
-    if not config.xrange:
-        config.xratiorange=[ MultiSpec.GetXaxis().GetXmin(),  MultiSpec.GetXaxis().GetXmax()]
-    else:
-        config.xratiorange=config.xrange
+    config.xratiorange=config.xrange
 
-#print config.xrange
-#print config.xratiorange
+if config.verbose:
+    print config.xrange
+    print config.xratiorange
 
 ########## Ratio graph
 
@@ -722,13 +732,17 @@ if  config.ratio or config.plusratio:
     TRatioLeg.SetTextFont(font2use)
     TRatioLeg.SetTextSize(fontsize)
 
-    TFconst1 = ROOT.TF1("TFconst1","1.",MultiSpec.GetXaxis().GetXmin(),  MultiSpec.GetXaxis().GetXmax())
+    if config.xratiorange:
+        TFconst1 = ROOT.TF1("TFconst1","1.",config.xratiorange[0],config.xratiorange[1])
+    else:
+        TFconst1 = ROOT.TF1("TFconst1","1.",MultiSpec.GetXaxis().GetXmin(),  MultiSpec.GetXaxis().GetXmax())
     TGconst1 = ROOT.TGraph(TFconst1)
     TGconst1.SetLineColor(colortable[DivPos%LenColor])
     TGconst1.SetLineWidth(4)
     MultiRatio.Add(TGconst1,"l")
     for idx,graphdata in enumerate(graphlist):
-        print graphdata
+        if config.verbose:
+            print graphdata
         if graphdata.skipratio:
             continue
         if not graphdata.ratiolegend:
@@ -752,11 +766,10 @@ if  config.ratio or config.plusratio:
         ratiograph.SetMarkerSize(markertable[idx%LenMarker][1]*config.scaling)
         MultiRatio.Add(ratiograph,"P")
 
+    MultiRatio.SetTitle("%s;%s;%s"%(' '.join(config.title),' '.join(config.xtitle),' '.join(config.yrtitle)))
 
     MultiRatio.Draw("A")
 
-    MultiRatio.GetXaxis().SetTitle("%s"%(' '.join(config.xtitle)))
-    MultiRatio.SetTitle("%s_ratio"%(' '.join(config.xtitle)))
     
     if config.xratiorange:
         MultiRatio.GetXaxis().SetRangeUser(config.xratiorange[0],config.xratiorange[1])
@@ -765,6 +778,14 @@ if  config.ratio or config.plusratio:
 
     if config.ratiolegend:
         TRatioLeg.Draw("same")
+    if config.xrlog:
+        ROOT.gPad.SetLogx()
+        if config.morexlables:
+            MultiRatio.GetXaxis().SetMoreLogLabels(True)
+    if config.yrlog:
+        ROOT.gPad.SetLogy()
+        if config.moreylables:
+            MultiRatio.GetYaxis().SetMoreLogLabels(True)
 
     ROOT.gPad.RedrawAxis()
     ROOT.gPad.Modified()
@@ -789,23 +810,38 @@ if  config.ratio or config.plusratio:
         
     
         TCplus.cd(1)
+        MultiSpec.GetXaxis().SetLabelOffset(0)
+        MultiSpec.Draw("AP")
         if config.xlog:
             ROOT.gPad.SetLogx()
+            if config.morexlables:
+                MultiSpec.GetXaxis().SetMoreLogLabels(True)
         if config.ylog:
             ROOT.gPad.SetLogy()
-        MultiSpec.Draw("AP")
         
         TLegPlus.Draw("")
         if config.label:
             Label.Draw("")
 #        
         TCplus.cd(2)
+        MultiRatio.GetXaxis().SetLabelOffset(config.labeloffsetx)
         MultiRatio.GetXaxis().SetTitleOffset(config.titleoffsetx/config.pluspadratio)
         MultiRatio.Draw("AP")
+        if config.xlog: #Use xlog instead of xrlog to stay consistent with spectrum
+            ROOT.gPad.SetLogx()
+            if config.morexlables:
+                MultiRatio.GetXaxis().SetMoreLogLabels(True)
+        if config.yrlog:
+            ROOT.gPad.SetLogy()
         
         ROOT.gPad.RedrawAxis()
+        ROOT.gPad.Modified()
+        ROOT.gPad.Update()
 
         
 if config.save:
+    if not os.path.exists("plots"):
+        os.makedirs("plots")
+
     SavePlots()
 

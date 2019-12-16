@@ -611,9 +611,9 @@ MultiSpec = ROOT.TMultiGraph()
 
 
 if config.legendtitle:
-    TLeg = ROOT.TLegend(config.legendposition[0],config.legendposition[1],config.legendposition[0]+0.05,config.legendposition[1]-(len(inputdeque)+len(config.legendtitle))*(0.02*config.scaling))
+    TLeg = ROOT.TLegend(config.legendposition[0],config.legendposition[1],config.legendposition[0]+0.05,config.legendposition[1]-(len(inputdeque)+len(config.legendtitle))*(0.015*config.scaling))
 else:
-    TLeg = ROOT.TLegend(config.legendposition[0],config.legendposition[1],config.legendposition[0]+0.05,config.legendposition[1]-len(inputdeque)*(0.02*config.scaling))
+    TLeg = ROOT.TLegend(config.legendposition[0],config.legendposition[1],config.legendposition[0]+0.05,config.legendposition[1]-len(inputdeque)*(0.015*config.scaling))
 TLeg.SetFillColor(0)
 TLeg.SetMargin(0.075*config.scaling)
 TLeg.SetBorderSize(0)
@@ -804,9 +804,9 @@ if  config.ratio or config.plusratio:
         
         TLegPlus = TLeg.Clone("TLegPlus")
         if config.legendtitle:  #Extend legend size due to shrinked canvas. NEED TO RESET Y1 instead of Y2, because TBox orders Y1 and Y2 by size and the legend position is defined by the top left corner (Y1 > Y2).
-            TLegPlus.SetY1(config.legendposition[1]-((len(inputdeque)+1)*(0.02*config.scaling))/(1-config.pluspadratio))
+            TLegPlus.SetY1(config.legendposition[1]-((len(inputdeque)+len(config.legendtitle))*(0.015*config.scaling))/(1-config.pluspadratio))
         else:
-            TLegPlus.SetY1(config.legendposition[1]-(len(inputdeque)*(0.02*config.scaling))/(1-config.pluspadratio))
+            TLegPlus.SetY1(config.legendposition[1]-(len(inputdeque)*(0.015*config.scaling))/(1-config.pluspadratio))
         
     
         TCplus.cd(1)

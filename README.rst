@@ -3,6 +3,8 @@ rootSketch
 ===========
 
 rootSketch should be a macro to create root plots with the help of an easily editbale and readable config file.
+As the name suggests the purpose of rootSketch is to create plots in a fast way, which show all relevant points.
+It is not designed to create highly customized plots, even though sketches can be quite nice.
 
 
 Usage
@@ -41,7 +43,7 @@ Currently the following input files are supported:
 
    - .root files, including a path inside the .root file (i.e. file.root tdirectoryname tlistname histogramname)
    - Multicolumn text files (Files with 1 column will be interpreted as TGraphErrors, but need an addiotional binning file, files with 2 to 4 columns will be interpreted as TGraphErrors, files with 6 columns will be interpreted as TGraphAsymmErrors
-   - unumpy arrays stored into text format
+   - numpy arrays with uncertainties from the uncertainty package stored into text format
 
 Options
 ============

@@ -216,6 +216,11 @@ def GetFromTList( objname, rootlist ):
         #objectlist.append(listfile)
         return listfile
 
+def GetProjection( axis, histN ):
+    #Check for int value for axis
+    #Porject axis
+    #Return Projection
+
 
 def SavePlots():
     for oformat in config.outputformat:
@@ -332,11 +337,15 @@ parser.add_argument("-ct", "--colortable", type=int, default=2,
         help='Set used color table from design file. Will be ignored if palette option is used.')
 parser.add_argument("-mt", "--markertable", type=int, default=1,
         help='Set used marker table from design file.')
-#ratio config
+parser.add_argument("--xticks", action="store_true",
+        help='Plot additional ticks on top x-axis.')
+parser.add_argument("--yticks", action="store_true",
+        help='Plot additional ticks on top x-axis.')
 parser.add_argument("-mxl", "--morexlables", action="store_true",
         help='Add more ticks to x-axis. Only works with log axis')
 parser.add_argument("-myl", "--moreylables", action="store_true",
         help='Add more ticks to y-axis. Only works with log axis')
+#ratio config
 parser.add_argument("-pr", "--plusratio", action="store_true",
         help='Create a combined canvas with spectrum (top) and ratio below.')
 parser.add_argument("-ppr", "--pluspadratio", default=0.3, type=float,
@@ -447,6 +456,7 @@ for idx,inputconf in enumerate(inputdeque):
                     elif objectlist[jdx-1].InheritsFrom("TList"):
                         print ("TList")
                         objectlist.append(GetFromTList( listin, objectlist[jdx-1] ))
+                    #TODO: Add THnBase (THn(Sparse)) support
                     else:
                         print ("Unsupported class")
                         break
@@ -521,7 +531,6 @@ print ("%s \n"%(graphlist))
 NrGraphs = len(graphlist)
 
 DivPos = 0
-DivPos2 = 0
 Divisor = 0
 DivGraph = None
 for idx,inputdata in enumerate(graphlist):
@@ -578,6 +587,8 @@ ROOT.gStyle.SetTitleFont(font2use,"y")
 ROOT.gStyle.SetTitleYSize(fontsize)
 ROOT.gStyle.SetTitleXSize(fontsize)
 ROOT.gStyle.SetPalette(config.setpalette)
+ROOT.gStyle.SetPadTickX(config.xticks)
+ROOT.gStyle.SetPadTickY(config.yticks)
 
 NrColors =  ROOT.TColor.GetNumberOfColors()
 
@@ -611,9 +622,9 @@ MultiSpec = ROOT.TMultiGraph()
 
 
 if config.legendtitle:
-    TLeg = ROOT.TLegend(config.legendposition[0],config.legendposition[1],config.legendposition[0]+0.05,config.legendposition[1]-(len(inputdeque)+len(config.legendtitle))*(0.015*config.scaling))
+    TLeg = ROOT.TLegend(config.legendposition[0],config.legendposition[1],config.legendposition[0]+0.05,config.legendposition[1]-(len(inputdeque)+len(config.legendtitle))*(0.02*config.scaling))
 else:
-    TLeg = ROOT.TLegend(config.legendposition[0],config.legendposition[1],config.legendposition[0]+0.05,config.legendposition[1]-len(inputdeque)*(0.015*config.scaling))
+    TLeg = ROOT.TLegend(config.legendposition[0],config.legendposition[1],config.legendposition[0]+0.05,config.legendposition[1]-len(inputdeque)*(0.02*config.scaling))
 TLeg.SetFillColor(0)
 TLeg.SetMargin(0.075*config.scaling)
 TLeg.SetBorderSize(0)
@@ -689,7 +700,10 @@ else:
     MultiSpec.GetXaxis().SetRangeUser(MultiSpec.GetXaxis().GetXmin(), MultiSpec.GetXaxis().GetXmax() )
 
 if config.yrange:
+    #MultiSpec.SetMinimum(config.yrange[0])
+    #MultiSpec.SetMaximum(config.yrange[1])
     MultiSpec.GetYaxis().SetRangeUser(config.yrange[0],config.yrange[1])
+
 if config.legend:
     TLeg.Draw("")
 
@@ -705,7 +719,7 @@ if config.ylog:
     if config.moreylables:
         MultiSpec.GetYaxis().SetMoreLogLabels(True)
 
-ROOT.gPad.RedrawAxis()
+#ROOT.gPad.RedrawAxis()
 ROOT.gPad.Modified()
 ROOT.gPad.Update()
 

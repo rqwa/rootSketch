@@ -41,7 +41,10 @@ Input files
 
 Currently the following input files are supported:
 
-   - .root files, including a path inside the .root file (i.e. file.root tdirectoryname tlistname histogramname)
+   - .root files, including a path inside the .root file (i.e. file.root TdirectoryName TlistName HistogramName)
+     
+     - For classes based on THnBase it is possible to access the projection (The last argument needs to be the int value of the axis for the projection)
+     - Graphs/histograms can also be accessed if they are stored inside a TCanvas 
    - Multicolumn text files (Files with 1 column will be interpreted as TGraphErrors, but need an addiotional binning file, files with 2 to 4 columns will be interpreted as TGraphErrors, files with 6 columns will be interpreted as TGraphAsymmErrors
    - numpy arrays with uncertainties from the uncertainty package stored into text format
 

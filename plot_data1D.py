@@ -216,10 +216,26 @@ def GetFromTList( objname, rootlist ):
         #objectlist.append(listfile)
         return listfile
 
-def GetProjection( axis, histN ):
+def GetProjection( axis, hnbase ):
+    print (axis)
+    try:
+        projection = hnbase.Projection(int(axis))
+        return projection
+    except Exception as e:
+        sys.exit(e)
+        
     #Check for int value for axis
     #Porject axis
     #Return Projection
+
+def GetFromCanvas( objname, rootcanvas ):
+    print (objname)
+    canvasobj = rootcanvas.GetListOfPrimitives().FindObject(objname)
+    if not canvasobj:
+        print ("empty")
+        raise ValueError("Null pointer")
+    else:
+        return canvasobj
 
 
 def SavePlots():
@@ -456,6 +472,14 @@ for idx,inputconf in enumerate(inputdeque):
                     elif objectlist[jdx-1].InheritsFrom("TList"):
                         print ("TList")
                         objectlist.append(GetFromTList( listin, objectlist[jdx-1] ))
+                    elif objectlist[jdx-1].InheritsFrom("THnBase"):
+                        print ("THnBase")
+                        objectlist.append(GetProjection( listin, objectlist[jdx-1] ))
+                    elif objectlist[jdx-1].InheritsFrom("TCanvas"):
+                        print ("Canvas")
+                        objectlist.append(GetFromCanvas( listin, objectlist[jdx-1] ))
+
+
                     #TODO: Add THnBase (THn(Sparse)) support
                     else:
                         print ("Unsupported class")
